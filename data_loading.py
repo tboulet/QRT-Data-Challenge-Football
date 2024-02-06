@@ -47,12 +47,16 @@ def load_dataframe_playersfeatures(
         dataset_prefix : str,
         global_data_path = 'datas_final/',
         n_rows_to_load = sys.maxsize,
-        ) -> pd.DataFrame:
+        ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Load players features from the dataset, as a dataframe.
     
     Args:
         dataset_prefix (str): either 'train' or 'test'.
         global_data_path (str, optional): the path where all CSVs are. Defaults to 'datas_final/'.
+        
+    Returns:
+        pd.DataFrame : the home players features
+        pd.DataFrame : the away players features
     """
     assert dataset_prefix in ['train', 'test'], 'dataset_name should be either "train" or "test"'
     # Load max 1000 data points

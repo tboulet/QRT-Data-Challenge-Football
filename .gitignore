@@ -1,6 +1,7 @@
 # =============== Project related ===============
-# Virtual Environments
+# Environments
 venv*
+.vscode/
 
 # Data
 data/

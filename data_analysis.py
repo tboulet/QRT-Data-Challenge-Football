@@ -20,28 +20,28 @@ pass
 warnings.filterwarnings('ignore')
 
 
-def get_metrics_names_to_fn_names(df_teamfeatures : pd.DataFrame) -> Dict[str, List[str]]:
-    """Get the mapping of team metrics to their corresponding feature/column names in the dataframe.
+def get_metrics_names_to_fn_names(df_features : pd.DataFrame) -> Dict[str, List[str]]:
+    """Get the mapping of metrics to their corresponding feature/column names in the dataframe.
 
     Args:
-        df_teamfeatures (pd.DataFrame): a team dataframe
+        df_features (pd.DataFrame): a dataframe of features (be it team or player features)
 
     Returns:
-        Dict[str, List[str]]: a dictionary of team metrics to their corresponding feature/column names in the dataframe
+        Dict[str, List[str]]: a dictionary of metrics to their corresponding feature/column names in the dataframe
     """
-    teammetrics_names_to_fn_names = defaultdict(list)
-    for aggregate_function_name in df_teamfeatures.columns:
+    metrics_names_to_fn_names = defaultdict(list)
+    for aggregate_function_name in df_features.columns:
         words_splitted = aggregate_function_name.split("_")
         higher_idx_word_capital_letter = np.sum([int(word.isupper()) for word in words_splitted])
         metric_name = "_".join(words_splitted[:higher_idx_word_capital_letter])
         aggregate_function_name = '_'.join(words_splitted[higher_idx_word_capital_letter:])
-        teammetrics_names_to_fn_names[metric_name].append(aggregate_function_name)
-    return teammetrics_names_to_fn_names
+        metrics_names_to_fn_names[metric_name].append(aggregate_function_name)
+    return metrics_names_to_fn_names
 
 
 # Those metrics are not aggregated, and have to be treated differently. Some of them don't appear in the test set.
 non_aggregated_teammetric_names = ["HOME_ID", "HOME_TEAM_NAME", "HOME_LEAGUE", "AWAY_ID", "AWAY_TEAM_NAME", "AWAY_LEAGUE"]
-non_aggregated_playermetric_names = ["ID_team", "LEAGUE", "TEAM_NAME", "POSITION", "PLAYER_NAME"]
+non_aggregated_playermetric_names = ["ID", "ID_team", "LEAGUE", "TEAM_NAME", "POSITION", "PLAYER_NAME"]
 
 
 
