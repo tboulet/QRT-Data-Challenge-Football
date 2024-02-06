@@ -1,3 +1,33 @@
+# =============== Project related ===============
+# Virtual Environments
+venv*
+
+# Data
+data/
+datas_final/
+figures/
+
+# Logs (text files or other output files)
+logs/
+wandb/
+tensorboard/
+out.txt
+error.txt
+
+# Hydra config files
+.hydra/
+outputs/
+
+# Personal development files usefull for debugging
+personal*
+
+# ==============================================
+
+
+
+
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

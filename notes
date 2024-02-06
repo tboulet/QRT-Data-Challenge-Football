@@ -1,0 +1,38 @@
+Chaque donnée est un match. Pour chaque donnée (parmi n = 12 303 données) on a accès à :
+- l'id du match
+- la league du match (non accessible dans le test)
+- le noms des 2 équipes (non accessible dans le test)
+- pour chacune des deux équipes, on a des statistiques (team features) sur la (précédente?) saison de l'équipe.
+    Ces statistiques sont sous la forme de 25 métriques agrégés de 6 manière différente (la moyenne, la somme, la std, la moyenne des 5 derniers matchs, et le std des 5 derniers matchs)
+    Parmi ces 25 métriques, les 5 dernières sont aggrégés sous seulement 4 manière différente.
+    Cela donne au total 20 * 6 + 5 * 4 = 140 team features, donc 280 bi-team features (auquel on peut ajouter pour chaque équipe le ID du match, la league du match et le nom de l'équipe, les deux premières étant les mêmes pour les deux équipes).
+- pour chaque joueur de chaque équipe (environ 19 joueurs par équipe, variable) (via l'ID de la ligne qui correspond au match dans lequel il a joué), on a 
+    - la league du match (non accessible dans le test)
+    - le nom de l'équipe (non accessible dans le test)
+    - la position (GK, DEF, MID, ATT) du joueur
+    - le nom du joueur (non accessible dans le test)
+    - des statistiques (player features) sur la (précédente?) saison du joueur.
+        Ces statistiques sont sous la forme de 51 métriques agrégés de 6 manière différente (la moyenne, la somme, la std, la moyenne des 5 derniers matchs, et le std des 5 derniers matchs)
+        Parmi ces 51 métriques, les 2 dernières sont aggrégés sous seulement 4 manière différente.
+        Cela donne au total 49 * 6 + 2 * 4 = 302 player features (auquel on peut ajouter pour chaque joueur le ID du match, la league du match, le nom de l'équipe, le nom du joueur).
+
+
+Questions :
+- Est-ce que les données sont ordonnées par date ou autre chose ?
+- Pour une même équipe, les team features ne sont pas tout le temps les mêmes pour deux matchs différents, qu'est ce que ca veut dire ?
+- Est ce qu'un joueur peut avoir plusieurs roles dans sa carrière (ATT et DEF) ?
+- Pourquoi pour une team feature donnée, la season_average n'est pas proportionnelle à la season_sum ?
+- Différences entre les distributions de train et de test ?
+- Différences entre les distributions de HOME et de AWAY ?
+- Differences entre les distributions agrégés de la meme métrique ?
+
+
+
+Remarques :
+- on a des données manquantes parfois
+- les distributions des team features ont souvent la meme forme (log normale ?) avec un pic à 3 et étant entre 0 et 10, elles sont normalisées. Les red cards par contre sont pas log normale mais plutot bimodale avec des équipes sages et des équipes dites "un peu fofolles". 
+- d'après l'exemple, la plus haute feature importance c'est la std du nombre de yellow cards de la saison... (overfitting ?)
+
+Pistes :
+- Possibilité de retrouver le nom de l'équipe d'une équipe du test, à l'aide des données de train (classification) ?
+- Meme chose pour les joueurs ?
