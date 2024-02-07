@@ -22,9 +22,22 @@ Questions :
 - Pour une même équipe, les team features ne sont pas tout le temps les mêmes pour deux matchs différents, qu'est ce que ca veut dire ?
 - Est ce qu'un joueur peut avoir plusieurs roles dans sa carrière (ATT et DEF) ?
 - Pourquoi pour une team feature donnée, la season_average n'est pas proportionnelle à la season_sum ?
+        Conclusion : 
+                    teamfeatures : jsp
+                    playerfeatures : ?
 - Différences entre les distributions de train et de test ?
+        Conclusion : 
+                    teamfeatures : visuellement non, statistiquement l'écart est plus élevé que l'écart typique moyen donc oui (!)
+                    playerfeatures : visuellement non, statistiquement non plus ! 
+                        La différence normalisé est meme inférieur à 1 ce qui est pas censé être le cas si les deux distributions empiriques sont issus de données iid, ce qui indique que pour les players, le train et test dataset sont non disjoints !
 - Différences entre les distributions de HOME et de AWAY ?
+        Conclusion : 
+                    teamfeatures : ?
+                    playerfeatures : ?
 - Differences entre les distributions agrégés de la meme métrique ?
+        Conclusion : 
+                    teamfeatures : oui
+                    playerfeatures : ?
 
 
 
