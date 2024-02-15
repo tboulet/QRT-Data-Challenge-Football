@@ -4,6 +4,7 @@ venv*
 .vscode/
 
 # Data
+data_*/
 data/
 datas_final/
 figures/

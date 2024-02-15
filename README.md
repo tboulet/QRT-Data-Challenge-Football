@@ -13,7 +13,14 @@ pip install -r requirements.txt
 
 Then load the data from the ENS Data Challenge website and put it in the `./datas_final/` folder that you will have to create.
 
-## How to understand the repository :
-- please do a venv
-- please check the notebook data_vis_1_distributions.ipynb
-- you can check the notebook data_vis_2_distribution_comparison.ipynb
+## Usage
+
+They is a distinction between two kind of features, from a feature engineering point of view:
+- precomputed features: features that are computed once and for all and that are stored in a csv file. They are computed with python scripts in the `./features_engineering/` folder. There loading depends on the config.
+- dynamic features: features that are computed on the fly and that are not stored in a csv file. Their computation depends on the config.
+
+There are 3 main components to the project:
+- trainer : this is the object that will create and train models using features provided by the features_loader and features_creator.
+- features_loader : this is the object that will load the features from the csv files.
+- features_creator : this is the object that will create the dynamic features from the original or additional data.
+- metrics : this is the object that will compute the metrics of the model.

@@ -1,7 +1,24 @@
+# Monitoring
+snakeviz
+
+# Config system
+hydra-core
+
+# Code quality
+black
+
+# Logging
+wandb
+tensorboardX
+
+# Utils
+matplotlib
+seaborn
+tqdm
+
+# ML libraries
+numpy
 pandas
 numpy
 scikit-learn
 xgboost
-matplotlib
-seaborn
-tqdm
