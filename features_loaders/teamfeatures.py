@@ -37,11 +37,12 @@ class LoaderTeamfeatures(BaseLoader):
         return {"teamfeatures": self.dataframe_teamfeatures}
     
     def get_usable_features(self) -> Dict[str, np.ndarray]:
-        # Drop columns that are not for training
+        # Try dropping columns that are not for training
         for side in ["HOME", "AWAY"]:
             for suffix_feature in ["ID", "LEAGUE", "TEAM_NAME"]:
                 name_feature = f"{side}_{suffix_feature}"
-                self.dataframe_teamfeatures = self.dataframe_teamfeatures.drop(name_feature, axis=1)
+                if name_feature in self.dataframe_teamfeatures.columns:
+                    self.dataframe_teamfeatures = self.dataframe_teamfeatures.drop(columns=[name_feature])
         # Turn into numpy array
         self.dataframe_teamfeatures = self.dataframe_teamfeatures.to_numpy()
         # Return the features
