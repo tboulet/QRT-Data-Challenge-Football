@@ -1,7 +1,5 @@
 # Logging
 from collections import defaultdict
-import random
-from sklearn.metrics import accuracy_score, mean_squared_error
 import wandb
 from tensorboardX import SummaryWriter
 
@@ -13,19 +11,84 @@ from omegaconf import OmegaConf, DictConfig
 from tqdm import tqdm
 import datetime
 from time import time
-from typing import Any, Dict, Type
+from typing import Any, Dict, List, Tuple, Type
 import cProfile
 
 # ML libraries
 import numpy as np
-from features_loaders.base_feature_loader import BaseLoader
-from src.utils import try_get_seed
+import random
+import pandas as pd
+from sklearn.metrics import accuracy_score, mean_squared_error
 
 # Project imports
 from trainers import trainer_name_to_TrainerClass
 from features_loaders import loader_name_to_LoaderClass
 from features_creators import feature_creator_name_to_FeatureCreatorClass
+from features_loaders.base_feature_loader import BaseLoader
 from src.time_measure import RuntimeMeter
+from src.data_management import (
+    cut_data_to_n_data_max,
+    get_train_val_split,
+    save_predictions,
+    shuffle_data,
+)
+from src.utils import get_name_trainer_and_features, try_get_seed
+
+
+def create_features_dict_final_arrays(
+    dict_loaders: Dict[str, dict],
+    dict_creators: Dict[str, dict],
+    data_path: str,
+) -> Dict[str, np.ndarray]:
+    """Load and create the features to be given as input to the model, using the loaders and creators configurations.
+
+    Args:
+        dict_loaders (Dict[str, dict]): the dict of loaders configurations. Each configuration should at least contain the booleans "load" field and "use" field.
+        dict_creators (Dict[str, dict]): the dict of creators configurations. Each configuration should at least contain a boolean "use" field.
+        data_path (str): the path to the data.
+
+    Returns:
+        Dict[str, np.ndarray]: the final features, as a dictionnary of numpy arrays of shape (n_data, *_), that can be used as input to the model.
+    """
+
+    # Initialize as empty the intermediary objects and the final arrays
+    feature_dict_intermediary_objects: Dict[str, Any] = {}
+    features_dict_final_arrays: Dict[str, np.ndarray] = {}
+
+    # Load the features with the feature loaders
+    with RuntimeMeter("loading") as rm:
+        print("Loading features...")
+        loader_name_to_loader: Dict[str, BaseLoader] = {}
+        for name_loader, config_loader in dict_loaders.items():
+            if config_loader["load"]:
+                LoaderClass = loader_name_to_LoaderClass[name_loader]
+                loader: BaseLoader = LoaderClass(config_loader)
+                feature_dict_intermediary_objects.update(
+                    loader.load_features(data_path=data_path)
+                )
+                loader_name_to_loader[name_loader] = loader
+
+    # Run the feature creators to create final features from the loaded features
+    with RuntimeMeter("creation") as rm:
+        print("Creating features...")
+        for name_creator, config_creator in dict_creators.items():
+            if config_creator["use"]:
+                creator = feature_creator_name_to_FeatureCreatorClass[name_creator]
+                features_dict_final_arrays.update(
+                    creator.create_usable_features(feature_dict_intermediary_objects)
+                )
+
+    # Get the final features from the feature creators
+    with RuntimeMeter("reloadings") as rm:
+        print("Reloading features...")
+        for name_loader, loader in loader_name_to_loader.items():
+            if dict_loaders[name_loader]["use"]:
+                features_dict_final_arrays.update(loader.get_usable_features())
+        n_data = len(next(iter(features_dict_final_arrays.values())))
+        print(f"Number of data: {n_data}")
+        print()
+
+    return features_dict_final_arrays
 
 
 @hydra.main(config_path="configs", config_name="config_default.yaml")
@@ -36,6 +99,7 @@ def main(config: DictConfig):
     do_shuffle: bool = config["do_shuffle"]
     n_data_max: int = config["n_data_max"]
     K: int = config["cross_val_folds"]
+    do_test_pred: bool = config["do_test_pred"]
 
     do_cli: bool = config["do_cli"]
     do_wandb: bool = config["do_wandb"]
@@ -54,8 +118,17 @@ def main(config: DictConfig):
     trainer_config = config["trainer"]["config"]
     trainer = TrainerClass(trainer_config)
 
+    # Get the loaders and creators config
+    dict_loaders: Dict[str, dict] = config["loaders"]
+    dict_loaders_without_labels = dict_loaders.copy()
+    dict_loaders_without_labels.pop("labels")
+    dict_creators: Dict[str, dict] = config["creators"]
+
     # Initialize loggers
-    run_name = f"[{name_trainer}]]_{datetime.datetime.now().strftime('%dth%mmo_%Hh%Mmin%Ss')}_seed{seed}"
+    name_trainer_and_features = get_name_trainer_and_features(
+        name_trainer, dict_loaders, dict_creators
+    )
+    run_name = f"[{name_trainer_and_features}]_{datetime.datetime.now().strftime('%dth%mmo_%Hh%Mmin%Ss')}_seed{seed}"
     print(f"\nStarting run {run_name}")
     if do_wandb:
         run = wandb.init(
@@ -66,60 +139,25 @@ def main(config: DictConfig):
     if do_tb:
         tb_writer = SummaryWriter(log_dir=f"tensorboard/{run_name}")
 
-    # Load the features both from the disk and create some on the fly using creators.
-    feature_dict_intermediary_objects: Dict[str, Any] = {}
-    features_dict_final_arrays: Dict[str, np.ndarray] = {}
-
-    # Load the features with the feature loaders
-    with RuntimeMeter("loading") as rm:
-        print("Loading features...")
-        loader_name_to_loader: Dict[str, BaseLoader] = {}
-        loaders: Dict[str, dict] = config["loaders"]
-        for name_loader, config_loader in loaders.items():
-            if config_loader["load"]:
-                LoaderClass = loader_name_to_LoaderClass[name_loader]
-                loader: BaseLoader = LoaderClass(config_loader)
-                feature_dict_intermediary_objects.update(
-                    loader.load_features(data_path="data_train")
-                )
-                loader_name_to_loader[name_loader] = loader
-
-    # Run the feature creators to create final features from the loaded features
-    with RuntimeMeter("creation") as rm:
-        print("Creating features...")
-        creators: Dict[str, dict] = config["creators"]
-        for name_creator, config_creator in creators.items():
-            if config_creator["use"]:
-                creator = feature_creator_name_to_FeatureCreatorClass[name_creator]
-                features_dict_final_arrays.update(
-                    creator.create_usable_features(feature_dict_intermediary_objects)
-                )
-
-    # Get the final features from the feature creators
-    with RuntimeMeter("reloadings") as rm:
-        print("Reloading features...")
-        for name_loader, loader in loader_name_to_loader.items():
-            if config["loaders"][name_loader]["use"]:
-                features_dict_final_arrays.update(loader.get_usable_features())
-        n_data = len(next(iter(features_dict_final_arrays.values())))
-        print(f"Number of data: {n_data}")
-        print()
+    # Load the features
+    features_dict_final_arrays = create_features_dict_final_arrays(
+        dict_loaders=dict_loaders,
+        dict_creators=dict_creators,
+        data_path="data_train",
+    )
+    features_dict_final_arrays_test = create_features_dict_final_arrays(
+        dict_loaders=dict_loaders_without_labels,
+        dict_creators=dict_creators,
+        data_path="data_test",
+    )
 
     # Shuffle the data
     if do_shuffle:
         print("Shuffling the data...")
-        shuffled_indices = np.random.permutation(n_data)
-        for name_feature, feature_final_array in features_dict_final_arrays.items():
-            features_dict_final_arrays[name_feature] = feature_final_array[
-                shuffled_indices
-            ]
+        shuffle_data(features_dict_final_arrays)
 
     # Limit the data to a subset for debugging
-    if isinstance(n_data_max, int) and n_data_max < n_data:
-        for name_feature, feature_final_array in features_dict_final_arrays.items():
-            features_dict_final_arrays[name_feature] = feature_final_array[:n_data_max]
-        n_data = min(n_data, n_data_max)
-        print(f"Limiting the data to {n_data} samples.")
+    cut_data_to_n_data_max(features_dict_final_arrays, n_data_max)
 
     # Get the y_data out of the features, and remove it from the features.
     assert (
@@ -129,40 +167,36 @@ def main(config: DictConfig):
 
     # Start the KFold loop for Cross Validation
     dict_list_metrics = defaultdict(list)
+    list_label_preds_test: List[np.ndarray] = []
     for k in range(K):
         print(f"\nStarting fold {k+1}/{config['cross_val_folds']}")
 
-        indices_val = np.arange(n_data)[k * n_data // K : (k + 1) * n_data // K]
-        indices_train = np.concatenate(
-            [
-                np.arange(n_data)[: k * n_data // K],
-                np.arange(n_data)[(k + 1) * n_data // K :],
-            ]
-        )
-        features_dict_final_arrays_train = {
-            name_feature: feature_final_array[indices_train]
-            for name_feature, feature_final_array in features_dict_final_arrays.items()
-        }
-        features_dict_final_arrays_val = {
-            name_feature: feature_final_array[indices_val]
-            for name_feature, feature_final_array in features_dict_final_arrays.items()
-        }
-        labels_train = labels[indices_train]
-        labels_val = labels[indices_val]
+        (
+            features_dict_final_arrays_train,
+            features_dict_final_arrays_val,
+            labels_train,
+            labels_val,
+        ) = get_train_val_split(features_dict_final_arrays, labels, k, K)
+
         # Train the model
         with RuntimeMeter("training") as rm:
             trainer.train(
-                features_dict_final_arrays=features_dict_final_arrays_train, labels=labels_train
+                features_dict_final_arrays=features_dict_final_arrays_train,
+                labels=labels_train,
             )
 
         # Evaluate the model
         with RuntimeMeter("evaluation") as rm:
             metric_results = {}
-            labels_pred = trainer.predict(features_dict_final_arrays_val)
-            print("Labels pred:", labels_pred[:10])
-            print("Labels true:", labels_val[:10])
-            accuracy = accuracy_score(labels_val, labels_pred)
-            metric_results["accuracy"] = accuracy
+            if K >= 2:
+                # Cross validation
+                labels_pred = trainer.predict(features_dict_final_arrays_val)
+                accuracy = accuracy_score(labels_val, labels_pred)
+                metric_results["accuracy"] = accuracy
+            # Test prediction
+            labels_pred_test = trainer.predict(features_dict_final_arrays_test)
+            list_label_preds_test.append(labels_pred_test)
+            # Log metrics
             metric_results["training_time"] = rm.get_stage_runtime("training")
             metric_results["evaluation_time"] = rm.get_stage_runtime("evaluation")
             metric_results["log_time"] = rm.get_stage_runtime("log")
@@ -189,11 +223,14 @@ def main(config: DictConfig):
     # Finish the WandB run.
     if do_wandb:
         run.finish()
-        
+
     # Conclude
     print()
     for metric_name, list_metric in dict_list_metrics.items():
         print(f"Metric {metric_name}: {np.mean(list_metric)} +- {np.std(list_metric)}")
+
+    # Save the predictions
+    save_predictions(list_label_preds_test)
 
 
 if __name__ == "__main__":

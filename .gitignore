@@ -8,6 +8,7 @@ data_*/
 data/
 datas_final/
 figures/
+predictions*.csv
 
 # Logs (text files or other output files)
 logs/
