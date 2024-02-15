@@ -21,6 +21,7 @@ They is a distinction between two kind of features, from a feature engineering p
 
 There are 3 main components to the project:
 - trainer : this is the object that will create and train models using features provided by the features_loader and features_creator.
-- features_loader : this is the object that will load the features from the csv files.
-- features_creator : this is the object that will create the dynamic features from the original or additional data.
-- metrics : this is the object that will compute the metrics of the model.
+- loaders : this is the object that will load the features from the csv files.
+- creators : this is the object that will create the dynamic features from the original or additional loaded data.
+
+We use cross validation (with K=5 folds) to evaluate the models. The evaluation metric is the accuracy.

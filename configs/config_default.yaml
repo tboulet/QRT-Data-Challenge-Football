@@ -1,5 +1,8 @@
 # Hyperparameters
-n_iterations : 10
+seed : 1111
+do_shuffle : False
+n_data_max : 99999999999
+cross_val_folds : 5
 
 # Logging
 do_wandb : False
@@ -7,21 +10,28 @@ wandb_config:
   project : wandb_project_example
   entity : wandb_entity_example
 do_tb : True
-do_cli : True
+do_cli : False
 do_tqdm : True
 
-# Metrics
-metrics:
-  mse : {}
+# Features loader
+loaders:
+  labels :
+    load : True
+    use : True
+  teamfeatures :
+    load : True
+    use : True
+  # playerfeatures :
+  #   load : True
+  #   use : False
 
-
-
+# Features creator
+creators: {}
 
 # Defaults sub-configs and other Hydra config.
 defaults:
   - _self_
-  - task : brownian
-  - solver : constant
+  - trainer : xgb
   - override hydra/hydra_logging: disabled  
   - override hydra/job_logging: disabled 
 
