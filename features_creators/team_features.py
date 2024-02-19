@@ -22,3 +22,4 @@ class BaseFeatureCreator(ABC):
         Returns:
             Dict[str, np.ndarray]: the features, as a dictionnary of numpy arrays of shape (n_data, n_features).
         """
+        
