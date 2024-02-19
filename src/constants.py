@@ -1,5 +1,16 @@
 SPECIFIC_TEAMFEATURES = [
-    "HOME_ID", "AWAY_ID",
-    "HOME_LEAGUE", "AWAY_LEAGUE",
-    "HOME_TEAM_NAME", "AWAY_TEAM_NAME",
-    ]
+    "HOME_ID",
+    "HOME_TEAM_NAME",
+    "HOME_LEAGUE",
+    "AWAY_ID",
+    "AWAY_TEAM_NAME",
+    "AWAY_LEAGUE",
+]
+SPECIFIC_PLAYERFEATURES = [
+    "ID",
+    "ID_team",
+    "LEAGUE",
+    "TEAM_NAME",
+    "POSITION",
+    "PLAYER_NAME",
+]
