@@ -9,7 +9,7 @@ from trainers.base_trainer import BaseTrainer
 
 class XGBoostTrainer(BaseTrainer):
     """The class for training a XGBoost model."""
-    
+
     def __init__(self, config: dict):
         self.config = config
 
@@ -20,10 +20,10 @@ class XGBoostTrainer(BaseTrainer):
 
         Args:
             features_dict_final_arrays (Dict[str, np.ndarray]): the input data, as dictionnary of numpy arrays of shape (n_data_train, n_features_training).
-            labels (np.ndarray): the output data, as a numpy array of shape (n_data_train,)
+            labels (np.ndarray): the output data, as a numpy array of shape (n_data_train, 3)
         """
 
-        n_data_train, = labels.shape
+        (n_data_train,) = labels.shape
         x_data_array = self.convert_feature_name_to_array_to_x_data_array(
             features_dict_final_arrays,
         )
@@ -34,13 +34,13 @@ class XGBoostTrainer(BaseTrainer):
 
         # Parameters
         params = {
-            "objective": "reg:squarederror",  # for regression task
-            "eval_metric": "rmse",  # evaluation metric
+            "objective": "multi:softmax",  # for multi-class classification
+            "num_class": 3,  # number of classes
             "eta": 0.1,  # learning rate
-            "max_depth": 6,  # maximum depth of the tree
+            "max_depth": 10,  # maximum depth of a tree
             "subsample": 0.8,  # subsample ratio of the training instances
             "colsample_bytree": 0.8,  # subsample ratio of columns when constructing each tree
-            "seed": 42,  # random seed for reproducibility
+            "eval_metric": "merror",  # evaluation metric
         }
 
         num_rounds = 100  # number of boosting rounds
@@ -53,7 +53,7 @@ class XGBoostTrainer(BaseTrainer):
             feature_name_to_array (Dict[str, np.ndarray]): the input data, as dictionnary of numpy arrays of shape (n_data_train, n_features_training).
 
         Returns:
-            np.ndarray: the predictions, as a numpy array of shape (n_data_train, n_output_features).
+            np.ndarray: the predictions, as a numpy array of shape (n_data_train,).
         """
         # Convert the features dict to a x_data_array
         x_data_array = self.convert_feature_name_to_array_to_x_data_array(
@@ -64,7 +64,6 @@ class XGBoostTrainer(BaseTrainer):
         # Round the values to the nearest integer to obtain the indexes
         indexes_predicted = np.round(values_predicted).astype(int)
         return indexes_predicted
-        
 
     def convert_feature_name_to_array_to_x_data_array(
         self,
@@ -78,7 +77,7 @@ class XGBoostTrainer(BaseTrainer):
             ],
             axis=1,
         )
-        
+
     def predict_y_values(self, x_data_array: np.ndarray) -> np.ndarray:
         """Make predictions on the given features, and return the predictions."""
         dmatrix = xgb.DMatrix(x_data_array)

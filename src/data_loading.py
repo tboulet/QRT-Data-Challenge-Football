@@ -63,8 +63,8 @@ def load_dataframe_playersfeatures(
     home_players_statistics_df = pd.read_csv(global_data_path + f'/{dataset_prefix}_home_player_statistics_df.csv', nrows=n_rows_to_load)
     away_players_statistics_df = pd.read_csv(global_data_path + f'/{dataset_prefix}_away_player_statistics_df.csv', nrows=n_rows_to_load)
     
-    home_playersfeatures = home_players_statistics_df.iloc[:1000,:].replace({np.inf:np.nan,-np.inf:np.nan})
-    away_playersfeatures = away_players_statistics_df.iloc[:1000,:].replace({np.inf:np.nan,-np.inf:np.nan})
+    home_playersfeatures = home_players_statistics_df.iloc[:n_rows_to_load,:].replace({np.inf:np.nan,-np.inf:np.nan})
+    away_playersfeatures = away_players_statistics_df.iloc[:n_rows_to_load,:].replace({np.inf:np.nan,-np.inf:np.nan})
     return home_playersfeatures, away_playersfeatures
 
     

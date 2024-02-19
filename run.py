@@ -193,10 +193,13 @@ def main(config: DictConfig):
                 labels_pred = trainer.predict(features_dict_final_arrays_val)
                 accuracy = accuracy_score(labels_val, labels_pred)
                 metric_results["accuracy"] = accuracy
+                print(f"Accuracy: {accuracy}")
             # Test prediction
             labels_pred_test = trainer.predict(features_dict_final_arrays_test)
             list_label_preds_test.append(labels_pred_test)
             # Log metrics
+            metric_results["loading_time"] = rm.get_stage_runtime("loading")
+            metric_results["creation_time"] = rm.get_stage_runtime("creation")
             metric_results["training_time"] = rm.get_stage_runtime("training")
             metric_results["evaluation_time"] = rm.get_stage_runtime("evaluation")
             metric_results["log_time"] = rm.get_stage_runtime("log")
@@ -230,7 +233,9 @@ def main(config: DictConfig):
         print(f"Metric {metric_name}: {np.mean(list_metric)} +- {np.std(list_metric)}")
 
     # Save the predictions
-    save_predictions(list_label_preds_test)
+    if do_test_pred:
+        print("\nSaving the predictions...")
+        save_predictions(list_label_preds_test)
 
 
 if __name__ == "__main__":

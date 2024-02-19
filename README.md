@@ -25,3 +25,9 @@ There are 3 main components to the project:
 - creators : this is the object that will create the dynamic features from the original or additional loaded data.
 
 We use cross validation (with K=5 folds) to evaluate the models. The evaluation metric is the accuracy.
+
+The pipeline is summarized as follows:
+
+<p align="center">
+  <img src="assets/pipeline.jpg" alt="Title" width="60%"/>
+</p>

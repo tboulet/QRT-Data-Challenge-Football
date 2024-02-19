@@ -29,12 +29,14 @@ def get_metrics_names_to_fn_names(df_features : pd.DataFrame) -> Dict[str, List[
     Returns:
         Dict[str, List[str]]: a dictionary of metrics to their corresponding feature/column names in the dataframe
     """
-    metrics_names_to_fn_names = defaultdict(list)
+    metrics_names_to_fn_names = {}
     for aggregate_function_name in df_features.columns:
         words_splitted = aggregate_function_name.split("_")
         higher_idx_word_capital_letter = np.sum([int(word.isupper()) for word in words_splitted])
         metric_name = "_".join(words_splitted[:higher_idx_word_capital_letter])
         aggregate_function_name = '_'.join(words_splitted[higher_idx_word_capital_letter:])
+        if metric_name not in metrics_names_to_fn_names:
+            metrics_names_to_fn_names[metric_name] = []
         metrics_names_to_fn_names[metric_name].append(aggregate_function_name)
     return metrics_names_to_fn_names
 
