@@ -145,15 +145,15 @@ class LoaderTeamfeatures(BaseLoader):
             print(f"Team features loaded, shape : {self.dataframe_teamfeatures.shape}")
         return {"teamfeatures": self.dataframe_teamfeatures}
 
-    def get_usable_features(self) -> Dict[str, np.ndarray]:
+    def get_usable_features(self) -> Dict[str, pd.DataFrame]:
+        # Insert a column "ID" copy of the column "HOME_ID" at first position
+        # self.dataframe_teamfeatures.insert(0, "ID", self.dataframe_teamfeatures["HOME_ID"])
+        
         # Try dropping columns that are not for training
-
         for name_feature in SPECIFIC_TEAMFEATURES:
             if name_feature in self.dataframe_teamfeatures.columns:
                 self.dataframe_teamfeatures = self.dataframe_teamfeatures.drop(
                     columns=[name_feature]
                 )
-        # Turn into numpy array
-        self.dataframe_teamfeatures = self.dataframe_teamfeatures.to_numpy()
         # Return the features
         return {"teamfeatures": self.dataframe_teamfeatures}

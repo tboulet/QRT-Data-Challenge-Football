@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, List, Tuple, Any, Type, Callable
 
 import numpy as np
+import pandas as pd
 
 
 class BaseTrainer(ABC):
@@ -12,23 +13,24 @@ class BaseTrainer(ABC):
 
     @abstractmethod
     def train(
-        self, x_data: Dict[str, np.ndarray], y_data: np.ndarray
+        self,
+        dataframe: pd.DataFrame,
+        labels_train: np.ndarray,
     ):
         """Train the model.
 
         Args:
-            x_data (Any): the input data, as dictionnary of numpy arrays of shape (n_data_train, n_features_training).
-            y_data (Any): the output data, as a numpy array of shape (n_data_train,)
+            dataframe_train (pd.DataFrame): the input data, as a dataframe of shape (n_data_train, n_features_training).
+            labels (pd.Series): the output data, as a series of shape (n_data_train,)
         """
 
     @abstractmethod
-    def predict(self, feature_name_to_array: Dict[str, np.ndarray]) -> np.ndarray:
-        """Make predictions on the given features, and return the predictions.
-        The predictions should be of shape (n_data,) and be in the form of indexes, not one-hot encoded nor probabilities.
+    def predict(self, dataframe: pd.DataFrame) -> np.ndarray:
+        """Make predictions.
 
         Args:
-            x_data (Any): the input data, as dictionnary of numpy arrays of shape (n_data_train, n_features_training).
+            dataframe (pd.DataFrame): the input data, as a dataframe of shape (n_data_train, n_features_training).
 
         Returns:
-            np.ndarray: the predictions, as a numpy array of shape (n_data_train,)
+            np.ndarray: the predictions, as a numpy array of shape (n_data_train,).
         """

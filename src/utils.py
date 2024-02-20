@@ -1,4 +1,4 @@
-from typing import Dict, Union
+from typing import Any, Dict, Union
 
 import numpy as np
 
@@ -16,6 +16,23 @@ def to_numeric(x: Union[int, float, str, None]) -> Union[int, float]:
         return None
     else:
         raise ValueError(f"Cannot convert {x} to numeric")
+
+
+def try_get(key: str, config: Dict, default: Any) -> Any:
+    """Try to get a value from a config, and return a default value if not found
+
+    Args:
+        key (str): the key to look for
+        config (Dict): the config
+        default (Any): the default value
+
+    Returns:
+        Any: the value found, or the default value
+    """
+    if key in config:
+        return config[key]
+    else:
+        return default
 
 
 def try_get_seed(config: Dict) -> int:
@@ -37,9 +54,9 @@ def try_get_seed(config: Dict) -> int:
 
 
 def get_name_trainer_and_features(
-    name_trainer : str, 
-    dict_loaders : Dict[str, dict], 
-    dict_creators : Dict[str, dict],
+    name_trainer: str,
+    dict_loaders: Dict[str, dict],
+    dict_creators: Dict[str, dict],
 ) -> str:
     """Create the name of the {trainer + features} combination
 
@@ -54,10 +71,10 @@ def get_name_trainer_and_features(
     name_combination = name_trainer
     name_combination += "_("
     for name_loader, config_loader in dict_loaders.items():
-        if config_loader["use"] :
+        if config_loader["use"]:
             name_combination += name_loader + ","
     for name_creator, config_creator in dict_creators.items():
-        if config_creator["use"] :
+        if config_creator["use"]:
             name_combination += name_creator + ","
     name_combination += ")"
     return name_combination
