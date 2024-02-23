@@ -255,7 +255,7 @@ def main(config: DictConfig):
     # Start the KFold loop for Cross Validation
     dict_list_metrics = defaultdict(list)
     list_label_preds_test: List[np.ndarray] = []
-    kf = KFold(n_splits=5)
+    kf = KFold(n_splits=K)
 
     for k, (train_index, val_index) in enumerate(kf.split(df)):
         print(f"\nStarting fold {k+1}/{config['cross_val_folds']}")
