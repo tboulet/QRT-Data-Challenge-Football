@@ -32,16 +32,19 @@ def load_teamfeatures(
     Returns:
         pd.DataFrame: the team features, as a dataframe
     """
+    n_data_max = try_get("n_data_max", teamfeatures_config, default=sys.maxsize)
     verbose = try_get("verbose", teamfeatures_config, default=0)
     if verbose >= 1:
         print("Loading team features...")
 
     # Load the team features
     df_teamstatistics_home = pd.read_csv(
-        data_path + f"/home_team_statistics_df.csv"
+        data_path + f"/home_team_statistics_df.csv",
+        nrows=n_data_max,
     )
     df_teamstatistics_away = pd.read_csv(
-        data_path + f"/away_team_statistics_df.csv"
+        data_path + f"/away_team_statistics_df.csv",
+        nrows=n_data_max,
     )
         
     # Concatenate the home and away team features
@@ -74,7 +77,7 @@ def load_playerfeatures(
         pd.DataFrame: the home player features, as a dataframe
         pd.DataFrame: the away player features, as a dataframe
     """
-    n_data_max = 20
+    n_data_max = try_get("n_data_max", playerfeatures_config, default=sys.maxsize)
     verbose = try_get("verbose", playerfeatures_config, default=0)
     if verbose >= 1:
         print("Loading player features...")
@@ -94,7 +97,10 @@ def load_playerfeatures(
         df_playerfeatures_home.rename(columns={"ID_team": "ID"}, inplace=True) 
     if "ID_team" in df_playerfeatures_away.columns:
         df_playerfeatures_away.rename(columns={"ID_team": "ID"}, inplace=True) 
-               
+    
+    if verbose >= 1:
+        print("Playerfeatures shape: ", df_playerfeatures_home.shape, df_playerfeatures_away.shape)
+        
     return df_playerfeatures_home, df_playerfeatures_away
 
    
@@ -151,14 +157,30 @@ def load_dataframe_playersfeatures(
     
     
 def load_dataframe_labels(
-        global_data_path = 'datas_final/',
+        global_data_path : str,
         ) -> pd.DataFrame:
     """Load labels from the dataset
 
     Args:
-        global_data_path (str, optional): the path where all CSVs are. Defaults to 'datas_final/'.
+        global_data_path (str): the path where all CSVs are.
     """
-    labels = pd.read_csv(global_data_path + 'Y_train.csv')
+    labels = pd.read_csv(global_data_path + '/labels.csv')
     return labels
 
 
+def load_index_numpy_labels(
+    global_data_path : str,
+    ) -> np.ndarray:
+    """Load the labels as an index numpy array.
+
+    Args:
+        global_data_path (str): the path where all CSVs are. Defaults to 'datas_final/'.
+
+    Returns:
+        np.ndarray: the labels, as an index numpy array of shape (n_data,).
+    """
+    labels = load_dataframe_labels(global_data_path)
+    labels = labels.drop(columns=["ID"])
+    labels = labels.to_numpy()
+    labels = np.argmax(labels, axis=1)
+    return labels

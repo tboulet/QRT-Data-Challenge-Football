@@ -1,7 +1,7 @@
 # Hyperparameters
 seed : 1111
 do_shuffle : False
-n_data_max : 99999999999
+n_data_max : null
 cross_val_folds : 5
 do_test_pred : True
 
@@ -14,40 +14,60 @@ do_tb : True
 do_cli : False
 do_tqdm : True
 
-# ---------- Features loader ----------
-loaders:
-  # The labels loader
-  labels :
-    load : True
-    use : True
+# ---------- Team features ----------
+teamfeatures_config :
 
-  # The team features loader
-  teamfeatures :
-    load : True
-    use : True
-    metrics_to_drop : []
-    features_to_drop: []
-    # A method for dealing with missing values. Among 'mean', 'median', 'mode'
-    imputation_method : mean
-    # Whether to create a new indicator feature for each feature with missing values, or for each metric if all aggregated features have missing values
-    add_non_null_indicator_feature : False
-    add_non_null_indicator_metric : False
-    verbose : 1
-    
-  # playerfeatures :
-  #   load : True
-  #   use : False
-  #   metrics_to_drop :
-  #     # We have to drop cause its 100% null
-  #     - HOME_PLAYER_LONG_BALLS
-    #   - HOME_PLAYER_LONG_BALLS_WON
-    #   - HOME_PLAYER_SHOTS_OFF_TARGET
-    #   # Potentially drop cause its 70 and 35% null
-    #   - PLAYER_PUNCHES
-    #   - PLAYER_ACCURATE_PASSES_PERCENTAGE
+  # Metric and features to drop
+  metrics_to_drop :
+    - HOME_TEAM_SHOTS_TOTAL
+  features_to_drop:
+    - AWAY_TEAM_YELLOWCARDS_5_last_match_std
+    - misspled_feature_example
 
-# Features creator
-creators: {}
+  # Non-null indicator features
+  add_non_null_indicator_feature : True
+  add_non_null_indicator_metric : True
+
+  # Imputation
+  imputation_method : median
+
+  # Other
+  n_data_max : null
+  verbose : 1
+
+# ---------- Player features ----------
+playerfeatures_config :
+  # Metric and features to drop
+  metrics_to_drop :
+    # We have to drop cause its 100% null
+    - PLAYER_LONG_BALLS
+    - PLAYER_LONG_BALLS_WON
+    - PLAYER_SHOTS_OFF_TARGET
+    # Potentially drop cause its 70 and 35% null
+    - PLAYER_PUNCHES
+    - PLAYER_ACCURATE_PASSES_PERCENTAGE
+  features_to_drop : []
+
+  # Non-null indicator features
+  add_non_null_indicator_feature : True
+  add_non_null_indicator_metric : True
+
+  # Imputation
+  imputation_method : median
+
+  # Other
+  n_data_max : null
+  verbose : 1
+
+
+# ---------- Aggregator ----------
+aggregator_config :
+  role_grouping:
+    - ALL
+    # - ATK
+  operations:
+    - mean
+    # - min
 
 # Defaults sub-configs and other Hydra config.
 defaults:

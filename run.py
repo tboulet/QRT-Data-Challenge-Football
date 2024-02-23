@@ -20,23 +20,30 @@ import random
 import pandas as pd
 from sklearn.metrics import accuracy_score, mean_squared_error
 from sklearn.model_selection import KFold
-from src.data_loading import load_dataframe_labels, load_playerfeatures, load_teamfeatures
+from src.constants import SPECIFIC_PLAYERFEATURES
+from src.data_loading import (
+    load_dataframe_labels,
+    load_index_numpy_labels,
+    load_playerfeatures,
+    load_teamfeatures,
+)
 from src.feature_engineering import (
     add_non_null_indicator_features,
+    get_agg_playerfeatures_by_operation,
     drop_features,
     impute_missing_values,
+    group_playerfeatures_by_match_and_by_team,
 )
 
 # Project imports
 from trainers import trainer_name_to_TrainerClass
-from features_loaders.base_feature_loader import BaseLoader
 from src.time_measure import RuntimeMeter
 from src.data_management import (
     cut_data_to_n_data_max,
     save_predictions,
     shuffle_data,
 )
-from src.utils import get_name_trainer_and_features, try_get_seed
+from src.utils import get_name_trainer_and_features, to_numeric, try_get_seed
 
 
 def create_features(
@@ -94,10 +101,14 @@ def create_features(
             playerfeatures_config=playerfeatures_config,
             data_path=data_path,
         )
-        # Replace infinities with NaN
+        
         dfs = []
         for df_playerfeature_side in [df_playerfeatures_home, df_playerfeatures_away]:
-            df_playerfeature_side = df_playerfeature_side.replace({np.inf: np.nan, -np.inf: np.nan})
+
+            # Replace infinities with NaN
+            df_playerfeature_side = df_playerfeature_side.replace(
+                {np.inf: np.nan, -np.inf: np.nan}
+            )
             # Drop features
             df_playerfeature_side = drop_features(
                 df_features=df_playerfeature_side,
@@ -115,31 +126,70 @@ def create_features(
             )
             # Append to the list
             dfs.append(df_playerfeature_side)
-            
+
         df_playerfeatures_home, df_playerfeatures_away = dfs
-            
-        # Group playerfeatures by match and by team
-        matchID_to_side_to_playerfeatures : Dict[int, Dict[str, pd.DataFrame]] = {}
-        for matchID in df_playerfeatures_home["ID"].unique():
-            matchID_to_side_to_playerfeatures[matchID] = {
-                "home": df_playerfeatures_home[df_playerfeatures_home["ID"] == matchID],
-                "away": df_playerfeatures_away[df_playerfeatures_away["ID"] == matchID],
-            }
-            
+
+        # # Group playerfeatures by match and by team
+        # print("Grouping playerfeatures by match and by team...")
+        # matchID_to_side_to_playerfeatures = group_playerfeatures_by_match_and_by_team(
+        #     df_playerfeatures_home=df_playerfeatures_home,
+        #     df_playerfeatures_away=df_playerfeatures_away,
+        # )
+
         # Concatenate the playerfeatures
-        df_playerfeatures = pd.concat([df_playerfeatures_home, df_playerfeatures_away], ignore_index=True)
+        print("Concatenating playerfeatures...")
+        df_playerfeatures = pd.concat(
+            [df_playerfeatures_home, df_playerfeatures_away], ignore_index=True
+        )
 
     # Aggregate the playerfeatures
+    list_df_agg_playerfeatures: List[pd.DataFrame] = []
     with RuntimeMeter("aggregation") as rm:
         print("Aggregating playerfeatures...")
-        df_aggplayerfeatures = None
 
-    # Concatenate the teamfeatures and the playerfeatures
+        # Aggregate the team of home players with operations (mean, sum, etc.)
+        df_agg_playerfeatures_home = get_agg_playerfeatures_by_operation(
+            df_playerfeatures=df_playerfeatures_home,
+            aggregator_config=aggregator_config,
+        )
+        df_agg_playerfeatures_home.columns = [
+            "HOME_" + col if col != "ID" else col
+            for col in df_agg_playerfeatures_home.columns
+        ]
+        list_df_agg_playerfeatures.append(df_agg_playerfeatures_home)
+
+        # Aggregate the team of away players
+        df_agg_playerfeatures_away = get_agg_playerfeatures_by_operation(
+            df_playerfeatures=df_playerfeatures_away,
+            aggregator_config=aggregator_config,
+        )
+        df_agg_playerfeatures_away.columns = [
+            "AWAY_" + col if col != "ID" else col
+            for col in df_agg_playerfeatures_away.columns
+        ]
+        list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
+
+    # Concatenate the teamfeatures and the agg_playerfeatures
     with RuntimeMeter("concatenation") as rm:
-        print("Concatenating teamfeatures and playerfeatures...")
-        dataframe = pd.concat([df_teamfeatures, df_aggplayerfeatures], join="inner", axis=1)
+        print("Concatenating teamfeatures and aggregated playerfeatures...")
+        dataframe = pd.concat(
+            [df_teamfeatures] + list_df_agg_playerfeatures, join="inner", axis=1
+        )
         print(f"Final features shape: {dataframe.shape}")
 
+    # Drop non numeric and ID columns
+    dataframe.drop(
+        columns=[
+            "HOME_ID",
+            "HOME_LEAGUE",
+            "HOME_TEAM_NAME",
+            "AWAY_ID",
+            "AWAY_LEAGUE",
+            "AWAY_TEAM_NAME",
+        ],
+        inplace=True,
+        errors="ignore",
+    )
     return dataframe
 
 
@@ -185,13 +235,13 @@ def main(config: DictConfig):
     )
     if do_test_pred:
         df_test = create_features(
-            dict_loaders=dict_loaders_without_labels,
-            dict_creators=dict_creators,
+            teamfeatures_config=config["teamfeatures_config"],
+            playerfeatures_config=config["playerfeatures_config"],
+            aggregator_config=config["aggregator_config"],
             data_path="data_test",
         )
 
     # Shuffle the data
-    print(df)
     if do_shuffle:
         print("Shuffling the data...")
         shuffle_data(df)
@@ -200,13 +250,13 @@ def main(config: DictConfig):
     cut_data_to_n_data_max(df, n_data_max)
 
     # Get the y_data out of the features, and remove it from the features.
-    labels = load_dataframe_labels()
+    labels = load_index_numpy_labels(global_data_path="./data_train/")
 
     # Start the KFold loop for Cross Validation
     dict_list_metrics = defaultdict(list)
     list_label_preds_test: List[np.ndarray] = []
     kf = KFold(n_splits=5)
-    # for k in range(K):
+
     for k, (train_index, val_index) in enumerate(kf.split(df)):
         print(f"\nStarting fold {k+1}/{config['cross_val_folds']}")
 
@@ -219,7 +269,7 @@ def main(config: DictConfig):
         # Train the model
         with RuntimeMeter("training") as rm:
             trainer.train(
-                dataframe=df_train,
+                dataframe_train=df_train,
                 labels_train=labels_train,
             )
 

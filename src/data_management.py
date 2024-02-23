@@ -19,9 +19,6 @@ import cProfile
 
 # ML libraries
 import numpy as np
-from features_loaders.base_feature_loader import BaseLoader
-from src.time_measure import RuntimeMeter
-from src.utils import get_name_trainer_and_features, try_get_seed
 from sklearn.utils import shuffle
 
 

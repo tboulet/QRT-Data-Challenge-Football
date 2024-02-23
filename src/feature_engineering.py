@@ -19,7 +19,6 @@ import cProfile
 
 # ML libraries
 import numpy as np
-from features_loaders.base_feature_loader import BaseLoader
 from src.constants import SPECIFIC_PLAYERFEATURES, SPECIFIC_TEAMFEATURES
 from src.data_analysis import get_metrics_names_to_fn_names
 from src.time_measure import RuntimeMeter
@@ -100,17 +99,18 @@ def add_non_null_indicator_features(
         pd.DataFrame: a new dataframe with the indicator features added
     """
     verbose = try_get("verbose", features_config, default=0)
-        
+
     # Add feature_is_not_null features (indicator features for missing values)
     if features_config["add_non_null_indicator_feature"]:
         if verbose >= 1:
             print(f"Adding {len(df_features.columns)} <feature>_is_not_null features")
         for feature in df_features.columns:
-            if verbose >= 2:
-                print(f"Adding feature is_not_null for {feature}")
-            df_features[feature + "_is_not_null"] = (
-                df_features[feature].notnull().astype(int)
-            )
+            if feature not in SPECIFIC_PLAYERFEATURES + SPECIFIC_TEAMFEATURES:
+                if verbose >= 2:
+                    print(f"Adding feature is_not_null for {feature}")
+                df_features[feature + "_is_not_null"] = (
+                    df_features[feature].notnull().astype(int)
+                )
 
     # Add metric_is_not_null features (indicator feature for data missing for a given metric (for all aggregate functions))
     if features_config["add_non_null_indicator_metric"]:
@@ -121,7 +121,12 @@ def add_non_null_indicator_features(
             if metric not in SPECIFIC_PLAYERFEATURES + SPECIFIC_TEAMFEATURES:
                 if verbose >= 2:
                     print(f"Adding feature is_not_null for metric {metric}")
-                df_features[metric + "_is_not_null"] = df_features[[f"{metric}_{fn_name}" for fn_name in fn_names]].notnull().astype(int).sum(axis=1)
+                df_features[metric + "_is_not_null"] = (
+                    df_features[[f"{metric}_{fn_name}" for fn_name in fn_names]]
+                    .notnull()
+                    .all(axis=1)
+                    .astype(int)
+                )
                 n_added_metric_is_not_null += 1
         if verbose >= 1:
             print(f"\tAdded {n_added_metric_is_not_null} metric_is_not_null features")
@@ -145,18 +150,84 @@ def impute_missing_values(
     verbose = try_get("verbose", features_config, default=0)
     if verbose >= 1:
         print("Imputing missing values")
-        
+
     imputation_method = features_config["imputation_method"]
     for name_feature in df_features.columns:
         if name_feature not in SPECIFIC_TEAMFEATURES + SPECIFIC_PLAYERFEATURES:
             if verbose >= 2:
-                print(f"Imputing missing values for {name_feature} with {imputation_method}")
+                print(
+                    f"Imputing missing values for {name_feature} with {imputation_method}"
+                )
             if imputation_method == "mean":
-                df_features[name_feature] = df_features[name_feature].fillna(df_features[name_feature].mean())
+                df_features[name_feature] = df_features[name_feature].fillna(
+                    df_features[name_feature].mean()
+                )
             elif imputation_method == "median":
-                df_features[name_feature] = df_features[name_feature].fillna(df_features[name_feature].median())
+                df_features[name_feature] = df_features[name_feature].fillna(
+                    df_features[name_feature].median()
+                )
             elif imputation_method == "zero":
                 df_features[name_feature] = df_features[name_feature].fillna(0)
             else:
                 raise ValueError(f"Unknown imputation method {imputation_method}")
     return df_features
+
+
+def get_agg_playerfeatures_by_operation(
+    df_playerfeatures: pd.DataFrame,
+    aggregator_config: dict,
+) -> pd.DataFrame:
+    list_df_agg_playerfeatures: List[pd.DataFrame] = []
+    # Try dropping the columns that are not used
+    columns=[
+            "LEAGUE",
+            "TEAM_NAME",
+            "POSITION",
+            "PLAYER_NAME",
+        ]
+    df_playerfeatures_filtered = df_playerfeatures.drop(columns=columns, errors="ignore")
+    df_playerfeatures_grouped = df_playerfeatures_filtered.groupby("ID")
+    for operation in aggregator_config["operations"]:
+        if operation == "mean":
+            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.mean())
+        elif operation == "median":
+            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.median())
+        elif operation == "sum":
+            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.sum())
+        elif operation == "max":
+            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.max())
+        elif operation == "min":
+            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.min())
+        elif operation == "std":
+            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.std())
+        else:
+            raise ValueError(f"Unknown operation {operation}")
+    
+    return pd.concat(list_df_agg_playerfeatures, axis=1)
+
+
+def group_playerfeatures_by_match_and_by_team(
+    df_playerfeatures_home : pd.DataFrame,
+    df_playerfeatures_away : pd.DataFrame,
+) -> Dict[int, Dict[str, pd.DataFrame]]:
+    """Group in a dictionnary the player features by match and by team.
+    This function takes a lot of time.
+    You can access to the dataframe of player features for a given match and a given team with:
+    df_playerfeatures_matchID_team = matchID_to_side_to_playerfeatures[matchID][team]
+    
+    Where matchID_to_side_to_playerfeatures is the output of this function.
+
+    Args:
+        df_playerfeatures_home (pd.DataFrame): the dataframe of player features for the home team
+        df_playerfeatures_away (pd.DataFrame): the dataframe of player features for the away team
+
+    Returns:
+        Dict[int, Dict[str, pd.DataFrame]]: the mapping from matchID to team to player features
+    """
+    matchID_to_side_to_playerfeatures = {}
+    for matchID in df_playerfeatures_home["ID"].unique():
+        matchID_to_side_to_playerfeatures[matchID] = {
+            "HOME": df_playerfeatures_home[df_playerfeatures_home["ID"] == matchID],
+            "AWAY": df_playerfeatures_away[df_playerfeatures_away["ID"] == matchID],
+        }
+    return matchID_to_side_to_playerfeatures

@@ -16,14 +16,14 @@ class RandomTrainer(BaseTrainer):
 
     def train(
         self,
-        dataframe: pd.DataFrame,
+        dataframe_train: pd.DataFrame,
         labels_train: np.ndarray,
     ):
         """Train the model.
 
         Args:
             dataframe_train (pd.DataFrame): the input data, as a dataframe of shape (n_data_train, n_features_training).
-            labels (pd.Series): the output data, as a series of shape (n_data_train,)
+            labels_train (pd.Series): the output data, as a series of shape (n_data_train,)
         """
         pass
     
@@ -36,6 +36,5 @@ class RandomTrainer(BaseTrainer):
         Returns:
             np.ndarray: the predictions, as a numpy array of shape (n_data_train,).
         """
-        n_data = feature_name_to_array[list(feature_name_to_array.keys())[0]].shape[0]
-        return np.random.randint(0, 3, n_data)
+        return np.random.randint(0, 3, dataframe.shape[0])
         
