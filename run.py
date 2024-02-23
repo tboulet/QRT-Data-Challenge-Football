@@ -21,6 +21,11 @@ import pandas as pd
 from sklearn.metrics import accuracy_score, mean_squared_error
 from sklearn.model_selection import KFold
 from src.constants import SPECIFIC_PLAYERFEATURES
+
+
+# Project imports
+from trainers import trainer_name_to_TrainerClass
+from src.time_measure import RuntimeMeter
 from src.data_loading import (
     load_dataframe_labels,
     load_index_numpy_labels,
@@ -34,16 +39,18 @@ from src.feature_engineering import (
     impute_missing_values,
     group_playerfeatures_by_match_and_by_team,
 )
-
-# Project imports
-from trainers import trainer_name_to_TrainerClass
-from src.time_measure import RuntimeMeter
 from src.data_management import (
+    add_prefix_to_columns,
     cut_data_to_n_data_max,
+    merge_dfs,
     save_predictions,
     shuffle_data,
 )
-from src.utils import get_name_trainer_and_features, to_numeric, try_get_seed
+from src.utils import (
+    get_name_trainer_and_features,
+    to_numeric,
+    try_get_seed,
+)
 
 
 def create_features(
@@ -66,10 +73,11 @@ def create_features(
     Returns:
         pd.DataFrame: the final features, as a dataframe of shape (n_data, n_features)
     """
+    print(f"\n============ Creating features from {data_path} ============")
 
     # From the datasets, create the teamfeatures
     with RuntimeMeter("teamfeatures creation") as rm:
-        print("Creating teamfeatures :")
+        print("\nCreating teamfeatures :")
         # Load the initial data
         df_teamfeatures = load_teamfeatures(
             teamfeatures_config=teamfeatures_config,
@@ -93,15 +101,17 @@ def create_features(
             features_config=teamfeatures_config,
         )
 
+        print("[Shapes] Teamfeatures shape: ", df_teamfeatures.shape)
+
     # From the datasets, create the playerfeatures and the grouped playerfeatures
     with RuntimeMeter("playerfeatures creation") as rm:
-        print("Creating playerfeatures...")
+        print("\nCreating playerfeatures...")
         # Load the initial data
         df_playerfeatures_home, df_playerfeatures_away = load_playerfeatures(
             playerfeatures_config=playerfeatures_config,
             data_path=data_path,
         )
-        
+
         dfs = []
         for df_playerfeature_side in [df_playerfeatures_home, df_playerfeatures_away]:
 
@@ -137,25 +147,23 @@ def create_features(
         # )
 
         # Concatenate the playerfeatures
-        print("Concatenating playerfeatures...")
+        print("\tConcatenating playerfeatures...")
         df_playerfeatures = pd.concat(
             [df_playerfeatures_home, df_playerfeatures_away], ignore_index=True
         )
+        print(f"\t[Shapes] Playerfeatures shape: {df_playerfeatures.shape}")
 
     # Aggregate the playerfeatures
     list_df_agg_playerfeatures: List[pd.DataFrame] = []
     with RuntimeMeter("aggregation") as rm:
-        print("Aggregating playerfeatures...")
+        print("\nAggregating playerfeatures...")
 
         # Aggregate the team of home players with operations (mean, sum, etc.)
         df_agg_playerfeatures_home = get_agg_playerfeatures_by_operation(
             df_playerfeatures=df_playerfeatures_home,
             aggregator_config=aggregator_config,
         )
-        df_agg_playerfeatures_home.columns = [
-            "HOME_" + col if col != "ID" else col
-            for col in df_agg_playerfeatures_home.columns
-        ]
+        add_prefix_to_columns(df_agg_playerfeatures_home, "HOME_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_home)
 
         # Aggregate the team of away players
@@ -163,33 +171,35 @@ def create_features(
             df_playerfeatures=df_playerfeatures_away,
             aggregator_config=aggregator_config,
         )
-        df_agg_playerfeatures_away.columns = [
-            "AWAY_" + col if col != "ID" else col
-            for col in df_agg_playerfeatures_away.columns
-        ]
+        add_prefix_to_columns(df_agg_playerfeatures_away, "AWAY_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
 
-    # Concatenate the teamfeatures and the agg_playerfeatures
-    with RuntimeMeter("concatenation") as rm:
-        print("Concatenating teamfeatures and aggregated playerfeatures...")
-        dataframe = pd.concat(
-            [df_teamfeatures] + list_df_agg_playerfeatures, join="inner", axis=1
-        )
-        print(f"Final features shape: {dataframe.shape}")
+    # Merge and clean the teamfeatures and the aggregated playerfeatures
+    with RuntimeMeter("merging") as rm:
+        print("\nMerge and clean the teamfeatures and the aggregated playerfeatures...")
 
-    # Drop non numeric and ID columns
-    dataframe.drop(
-        columns=[
-            "HOME_ID",
-            "HOME_LEAGUE",
-            "HOME_TEAM_NAME",
-            "AWAY_ID",
-            "AWAY_LEAGUE",
-            "AWAY_TEAM_NAME",
-        ],
-        inplace=True,
-        errors="ignore",
-    )
+        # Concatenate the teamfeatures and the agg_playerfeatures
+        dataframe = merge_dfs(
+            list_dataframes=[df_teamfeatures] + list_df_agg_playerfeatures,
+            on="ID",
+        )
+
+        # Drop non numeric and ID columns
+        dataframe.drop(
+            columns=[
+                "ID",
+                "HOME_ID",
+                "HOME_LEAGUE",
+                "HOME_TEAM_NAME",
+                "AWAY_ID",
+                "AWAY_LEAGUE",
+                "AWAY_TEAM_NAME",
+            ],
+            inplace=True,
+            errors="ignore",
+        )
+
+    print(f"[Shapes] Final features shape: {dataframe.shape}")
     return dataframe
 
 
@@ -281,31 +291,31 @@ def main(config: DictConfig):
             preds_train = trainer.predict(df_train)
             accuracy_train = accuracy_score(labels_train, preds_train)
             metric_results["accuracy_train"] = accuracy_train
-
+            print(f"Accuracy train: {accuracy_train}")
+            
             # Cross validation metrics
             if K >= 2:
                 preds_test = trainer.predict(dataframe=df_val)
                 accuracy_test = accuracy_score(labels_val, preds_test)
                 metric_results["accuracy"] = accuracy_test
-                print(f"Accuracy: {accuracy_test}")
+                print(f"Accuracy test: {accuracy_test}")
 
             # Test metrics
             if do_test_pred:
                 labels_pred_test = trainer.predict(df_test)
                 list_label_preds_test.append(labels_pred_test)
-                save_predictions(list_label_preds_test)
+                
 
             # Save time metrics
-            metric_results["loading_time"] = rm.get_stage_runtime("loading")
-            metric_results["creation_time"] = rm.get_stage_runtime("creation")
-            metric_results["training_time"] = rm.get_stage_runtime("training")
-            metric_results["evaluation_time"] = rm.get_stage_runtime("evaluation")
-            metric_results["log_time"] = rm.get_stage_runtime("log")
+            metric_results.update(rm.stage_name_to_runtime)
 
         # Log metrics
         if do_cli:
             print(f"Metrics: {metric_results}")
 
+    if do_test_pred:
+        save_predictions(list_label_preds_test, path="predictions.csv")
+        
     # Conclude
     print()
     for metric_name, list_metric in dict_list_metrics.items():

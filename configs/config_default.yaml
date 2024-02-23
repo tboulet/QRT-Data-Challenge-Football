@@ -1,8 +1,8 @@
 # Hyperparameters
-seed : 1111
+seed : 
 do_shuffle : False
 n_data_max : null
-cross_val_folds : 5
+cross_val_folds : 10
 do_test_pred : True
 
 # Logging
@@ -56,7 +56,7 @@ playerfeatures_config :
   imputation_method : median
 
   # Other
-  n_data_max : null
+  n_data_max : 
   verbose : 1
 
 
