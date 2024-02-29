@@ -1,8 +1,8 @@
 # Hyperparameters
-seed : 1111
+seed : 
 do_shuffle : False
-n_data_max : 99999999999
-cross_val_folds : 5
+n_data_max : null
+cross_val_folds : 10
 do_test_pred : True
 
 # Logging
@@ -14,40 +14,89 @@ do_tb : True
 do_cli : False
 do_tqdm : True
 
-# ---------- Features loader ----------
-loaders:
-  # The labels loader
-  labels :
-    load : True
-    use : True
+# ---------- Team features ----------
+teamfeatures_config :
 
-  # The team features loader
-  teamfeatures :
-    load : True
-    use : True
-    metrics_to_drop : []
-    features_to_drop: []
-    # A method for dealing with missing values. Among 'mean', 'median', 'mode'
-    imputation_method : mean
-    # Whether to create a new indicator feature for each feature with missing values, or for each metric if all aggregated features have missing values
-    add_non_null_indicator_feature : False
-    add_non_null_indicator_metric : False
-    verbose : 1
-    
-  # playerfeatures :
-  #   load : True
-  #   use : False
-  #   metrics_to_drop :
-  #     # We have to drop cause its 100% null
-  #     - HOME_PLAYER_LONG_BALLS
-    #   - HOME_PLAYER_LONG_BALLS_WON
-    #   - HOME_PLAYER_SHOTS_OFF_TARGET
-    #   # Potentially drop cause its 70 and 35% null
-    #   - PLAYER_PUNCHES
-    #   - PLAYER_ACCURATE_PASSES_PERCENTAGE
+  # Metric and features to drop
+  metrics_to_drop : []
+  features_to_drop: []
+  fn_agg_to_drop:
+    - season_average
+    - season_std
+    - 5_last_match_sum
+    - 5_last_match_average
+    - 5_last_match_std
+  
+  # Threshold for dropping features if correlation is above
+  threshold_correlation_drop : 0.80
 
-# Features creator
-creators: {}
+  # Non-null indicator features
+  add_non_null_indicator_feature : True
+  add_non_null_indicator_metric : True
+
+  # Imputation
+  imputation_method : median
+
+  # Other
+  n_data_max : null
+  verbose : 1
+
+# ---------- Player features ----------
+playerfeatures_config :
+  metrics_to_drop :
+    # We drop those metrics as they are 100% null
+    - PLAYER_LONG_BALLS
+    - PLAYER_LONG_BALLS_WON
+    - PLAYER_SHOTS_OFF_TARGET
+    # Potentially drop cause its (71% ,33%)
+    # - PLAYER_PUNCHES  
+    # Potentially drop cause its (40 ,30%)
+    # - PLAYER_ACCURATE_PASSES_PERCENTAGE  
+  features_to_drop:
+    # We drop those PLAYER_CAPTAIN features are null everywhere (but not PLAYER_CAPTAIN_season_sum and PLAYER_CAPTAIN_5_last_match_sum)
+    - PLAYER_CAPTAIN_season_average
+    - PLAYER_CAPTAIN_5_last_match_average
+    - PLAYER_CAPTAIN_season_std
+    - PLAYER_CAPTAIN_5_last_match_std
+    # Features to drop cause too much correlation
+    # - PLAYER_CLEARANCE_OFFLINE_season_std
+    # - PLAYER_CLEARANCE_OFFLINE_5_last_match_std
+    # - PLAYER_ERROR_LEAD_TO_GOAL_season_std
+    # - PLAYER_ERROR_LEAD_TO_GOAL_5_last_match_std
+    # - PLAYER_HIT_WOODWORK_season_std
+    # - PLAYER_HIT_WOODWORK_5_last_match_std
+    # - PLAYER_OWN_GOALS_season_std
+    # - PLAYER_OWN_GOALS_5_last_match_std
+  fn_agg_to_drop:
+    - season_average
+    - season_std
+    - 5_last_match_sum
+    - 5_last_match_average
+    - 5_last_match_std
+
+  # Threshold for dropping features if correlation is above
+  threshold_correlation_drop : 0.80
+
+  # Non-null indicator features
+  add_non_null_indicator_feature : True
+  add_non_null_indicator_metric : True
+
+  # Imputation
+  imputation_method : median
+
+  # Other
+  n_data_max : 
+  verbose : 1
+
+
+# ---------- Aggregator ----------
+aggregator_config :
+  role_grouping:
+    - ALL
+    # - ATK
+  operations:
+    - mean
+    # - min
 
 # Defaults sub-configs and other Hydra config.
 defaults:

@@ -8,7 +8,6 @@ SPECIFIC_TEAMFEATURES = [
 ]
 SPECIFIC_PLAYERFEATURES = [
     "ID",
-    "ID_team",
     "LEAGUE",
     "TEAM_NAME",
     "POSITION",

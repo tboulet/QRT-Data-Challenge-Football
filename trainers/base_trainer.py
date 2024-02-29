@@ -14,14 +14,14 @@ class BaseTrainer(ABC):
     @abstractmethod
     def train(
         self,
-        dataframe: pd.DataFrame,
+        dataframe_train: pd.DataFrame,
         labels_train: np.ndarray,
     ):
         """Train the model.
 
         Args:
             dataframe_train (pd.DataFrame): the input data, as a dataframe of shape (n_data_train, n_features_training).
-            labels (pd.Series): the output data, as a series of shape (n_data_train,)
+            labels_train (pd.Series): the output data, as a series of shape (n_data_train,)
         """
 
     @abstractmethod
