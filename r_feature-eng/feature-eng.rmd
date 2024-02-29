@@ -1,0 +1,29 @@
+---
+title: "RGCCA for Feature Engineering"
+author: "Théo Saulus, Timothé Boulet"
+date: '`r Sys.Date()`'
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 8
+    fig_width: 8
+    number_sections: yes
+    toc: yes
+  html_document:
+    toc: yes
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.height=7, fig.width=8)
+```
+
+# Load packages
+```{r}
+library(RGCCA)
+```
+
+# Load data 
+```{r}
+data()
+```

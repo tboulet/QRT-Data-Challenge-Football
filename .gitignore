@@ -9,6 +9,7 @@ data/
 datas_final/
 figures/
 predictions*.csv
+QRT-Data-Challenge-Football.rar
 
 # Logs (text files or other output files)
 logs/
@@ -23,6 +24,9 @@ outputs/
 
 # Personal development files usefull for debugging
 personal*
+
+# R files
+*.Rhistory
 
 # ==============================================
 
