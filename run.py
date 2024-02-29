@@ -307,7 +307,7 @@ def main(config: DictConfig):
                 
 
             # Save time metrics
-            metric_results.update({f"time {key}": value for key, value in rm.stage_name_to_runtime().items()})
+            metric_results.update({f"time {key}": value for key, value in rm.stage_name_to_runtime.items()})
             for metric_name, metric_value in metric_results.items():
                 dict_list_metrics[metric_name].append(metric_value)
                 

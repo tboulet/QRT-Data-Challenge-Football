@@ -18,11 +18,17 @@ do_tqdm : True
 teamfeatures_config :
 
   # Metric and features to drop
-  metrics_to_drop :
-    - HOME_TEAM_SHOTS_TOTAL
-  features_to_drop:
-    - AWAY_TEAM_YELLOWCARDS_5_last_match_std
-    - misspled_feature_example
+  metrics_to_drop : []
+  features_to_drop: []
+  fn_agg_to_drop:
+    - season_average
+    - season_std
+    - 5_last_match_sum
+    - 5_last_match_average
+    - 5_last_match_std
+  
+  # Threshold for dropping features if correlation is above
+  threshold_correlation_drop : 0.80
 
   # Non-null indicator features
   add_non_null_indicator_feature : True
@@ -37,16 +43,39 @@ teamfeatures_config :
 
 # ---------- Player features ----------
 playerfeatures_config :
-  # Metric and features to drop
   metrics_to_drop :
-    # We have to drop cause its 100% null
+    # We drop those metrics as they are 100% null
     - PLAYER_LONG_BALLS
     - PLAYER_LONG_BALLS_WON
     - PLAYER_SHOTS_OFF_TARGET
-    # Potentially drop cause its 70 and 35% null
-    - PLAYER_PUNCHES
-    - PLAYER_ACCURATE_PASSES_PERCENTAGE
-  features_to_drop : []
+    # Potentially drop cause its (71% ,33%)
+    # - PLAYER_PUNCHES  
+    # Potentially drop cause its (40 ,30%)
+    # - PLAYER_ACCURATE_PASSES_PERCENTAGE  
+  features_to_drop:
+    # We drop those PLAYER_CAPTAIN features are null everywhere (but not PLAYER_CAPTAIN_season_sum and PLAYER_CAPTAIN_5_last_match_sum)
+    - PLAYER_CAPTAIN_season_average
+    - PLAYER_CAPTAIN_5_last_match_average
+    - PLAYER_CAPTAIN_season_std
+    - PLAYER_CAPTAIN_5_last_match_std
+    # Features to drop cause too much correlation
+    # - PLAYER_CLEARANCE_OFFLINE_season_std
+    # - PLAYER_CLEARANCE_OFFLINE_5_last_match_std
+    # - PLAYER_ERROR_LEAD_TO_GOAL_season_std
+    # - PLAYER_ERROR_LEAD_TO_GOAL_5_last_match_std
+    # - PLAYER_HIT_WOODWORK_season_std
+    # - PLAYER_HIT_WOODWORK_5_last_match_std
+    # - PLAYER_OWN_GOALS_season_std
+    # - PLAYER_OWN_GOALS_5_last_match_std
+  fn_agg_to_drop:
+    - season_average
+    - season_std
+    - 5_last_match_sum
+    - 5_last_match_average
+    - 5_last_match_std
+
+  # Threshold for dropping features if correlation is above
+  threshold_correlation_drop : 0.80
 
   # Non-null indicator features
   add_non_null_indicator_feature : True
