@@ -33,6 +33,7 @@ from src.data_loading import (
     load_teamfeatures,
 )
 from src.feature_engineering import (
+    add_home_and_away_team_name_identifier_features,
     add_non_null_indicator_features,
     get_agg_playerfeatures_by_operation,
     drop_features,
@@ -96,6 +97,11 @@ def create_features(
         )
         # Impute missing values
         df_teamfeatures = impute_missing_values(
+            df_features=df_teamfeatures,
+            features_config=teamfeatures_config,
+        )
+        # Add team name features
+        df_teamfeatures = add_home_and_away_team_name_identifier_features(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
         )
@@ -290,10 +296,10 @@ def main(config: DictConfig):
             
             # Cross validation metrics
             if K >= 2:
-                preds_test = trainer.predict(dataframe=df_val)
-                accuracy_test = accuracy_score(labels_val, preds_test)
-                metric_results["accuracy"] = accuracy_test
-                print(f"Accuracy test: {accuracy_test}")
+                preds_val = trainer.predict(dataframe=df_val)
+                accuracy_val = accuracy_score(labels_val, preds_val)
+                metric_results["accuracy_val"] = accuracy_val
+                print(f"Accuracy val: {accuracy_val}")
 
             # Test metrics
             if do_test_pred:

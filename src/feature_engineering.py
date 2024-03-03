@@ -230,8 +230,122 @@ def impute_missing_values(
                 )
             elif imputation_method == "zero":
                 df_features[name_feature] = df_features[name_feature].fillna(0)
+            elif imputation_method in [None, False]:
+                pass
             else:
                 raise ValueError(f"Unknown imputation method {imputation_method}")
+    return df_features
+
+
+def add_home_and_away_team_name_identifier_features(
+    df_features: pd.DataFrame,
+    features_config: dict,
+) -> pd.DataFrame:
+    """Try to add features to the dataframe to identify the home and away team names.
+    It requires to have previously run "python compute_team_name_to_id_mapping" to generate the team_mapping.csv file, which is used to map the team names to their identifiers.
+    For test data, because it does not contains the team names, it will requires to use a predictor to predict the team names.
+
+    Args:
+        df_features (pd.DataFrame): the dataframe to add the features to
+        features_config (dict): the config for the features
+
+    Returns:
+        pd.DataFrame: the dataframe with the home and away team identifier features added
+    """
+
+    verbose = try_get("verbose", features_config, default=0)
+    if verbose >= 1:
+        print("\tAdding home and away team name identifier features")
+
+    # Load the team mapping CSV file
+    try:
+        team_mapping_df = pd.read_csv("data/team_mapping.csv")
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            "The data/team_mapping.csv file is missing. Please run 'python compute_team_name_to_id_mapping' to generate it."
+        )
+
+    # If HOME_TEAM_NAME is not in the dataframe, it means that it is the test data, and we need to predict the team names
+    if "HOME_TEAM_NAME" not in df_features.columns:
+        return df_features
+        raise ValueError(
+            "The HOME_TEAM_NAME column is missing from the dataframe. It is required to add the home and away team identifier features."
+        )
+
+    if features_config["add_team_name_identifier"]:
+
+        # Merge the team mapping with df_features based on home team name
+        df_features = pd.merge(
+            df_features,
+            team_mapping_df,
+            left_on="HOME_TEAM_NAME",
+            right_on="Team_Name",
+            how="left",
+        )
+        df_features.rename(columns={"Identifier": "HOME_TEAM_ID"}, inplace=True)
+        df_features.drop(columns=["Team_Name"], inplace=True)
+
+        # Merge the team mapping with df_features based on away team name
+        df_features = pd.merge(
+            df_features,
+            team_mapping_df,
+            left_on="AWAY_TEAM_NAME",
+            right_on="Team_Name",
+            how="left",
+        )
+        df_features.rename(columns={"Identifier": "AWAY_TEAM_ID"}, inplace=True)
+        df_features.drop(columns=["Team_Name"], inplace=True)
+
+    if features_config["add_team_name_indicator"]:
+        # Create indicator features for each team name
+        team_names = team_mapping_df["Team_Name"].tolist()
+        for team_name in team_names:
+            # Create indicator feature for home team
+            df_features[f"{team_name}_HOME"] = (
+                df_features["HOME_TEAM_NAME"] == team_name
+            ).astype(int)
+            # Create indicator feature for away team
+            df_features[f"{team_name}_AWAY"] = (
+                df_features["AWAY_TEAM_NAME"] == team_name
+            ).astype(int)
+    
+    if features_config["add_team_winrate"]:
+        # Read win rates CSV
+        win_rates_df = pd.read_csv("win_rates.csv")
+        # Read team mapping CSV
+        team_mapping_df = pd.read_csv("team_mapping.csv")
+
+        # Merge with team mapping dataframe to get identifiers
+        df_features = df_features.merge(
+            team_mapping_df, how="left", left_on="HOME_TEAM_NAME", right_on="Team_Name"
+        ).rename(columns={"Identifier": "identifier_HOME_ID"})
+        df_features = df_features.merge(
+            team_mapping_df, how="left", left_on="AWAY_TEAM_NAME", right_on="Team_Name"
+        ).rename(columns={"Identifier": "identifier_AWAY_ID"})
+
+        # Merge with win rates dataframe to add win rates for home teams
+        df_features = df_features.merge(
+            win_rates_df[["HOME_TEAM_ID", "AWAY_TEAM_ID", "HOME_WINS_RATE"]],
+            how="left",
+            left_on=["identifier_HOME_ID", "identifier_AWAY_ID"],
+            right_on=["HOME_TEAM_ID", "AWAY_TEAM_ID"],
+        )
+
+        # Rename and select columns
+        df_features["WINRATE_HOME"] = df_features["HOME_WINS_RATE"]
+        df_features.drop(
+            columns=[
+                "identifier_HOME_ID",
+                "identifier_AWAY_ID",
+                "Team_Name_x",
+                "Team_Name_y",
+                "HOME_TEAM_ID",
+                "AWAY_TEAM_ID",
+                "HOME_WINS_RATE",
+            ],
+            inplace=True,
+        )
+
     return df_features
 
 
