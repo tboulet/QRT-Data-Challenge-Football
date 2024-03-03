@@ -45,11 +45,12 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
     if verbose >= 1:
         print(f"\tDropping features with correlation with the target below {thr}...")
     n_dropped_features = 0
-    features_to_keep = set()
+    features_blocked = set()
     if thr is not None and thr > 0:
         max_correlations_df = pd.read_csv(
             "data/max_correlations_global.csv", index_col=0
         )
+        features_to_keep = df_features.columns.tolist().copy()
         for feature in df_features.columns:
             # Do not drop specific features
             if feature in SPECIFIC_PLAYERFEATURES + SPECIFIC_TEAMFEATURES:
@@ -59,17 +60,20 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
                 continue
             max_corr_feature_row = max_correlations_df.loc[feature]
             # Do not drop if the max_correlated_feature is in the features_to_keep set
-            if max_corr_feature_row["Max Correlated Feature"] in features_to_keep:
+            if max_corr_feature_row["Max Correlated Feature"] in features_blocked:
                 continue
             # Drop if the correlation is above the threshold
-            if max_corr_feature_row["Correlation"] >= thr:
+            if max_corr_feature_row["Correlation"] > thr:
                 if verbose >= 2:
                     print(
                         f"\t\tDropping {feature} because its correlation with {max_corr_feature_row['Max Correlated Feature']} is above {thr}"
                     )
-                df_features = df_features.drop(columns=[feature])
-                features_to_keep.add(max_corr_feature_row["Max Correlated Feature"])
+                # df_features = df_features.drop(columns=[feature])
+                features_to_keep.remove(feature)
+                features_blocked.add(max_corr_feature_row["Max Correlated Feature"])
                 n_dropped_features += 1
+        df_features = df_features[features_to_keep]
+
     if verbose >= 1:
         print(
             f"\tDropped {n_dropped_features} features with correlation with the target below {thr}"
@@ -80,6 +84,7 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
         print("\tDropping metrics...")
     n_dropped_features = 0
     names_feature_dropped = set()
+    features_to_keep = df_features.columns.tolist().copy()
     for metric in features_config["metrics_to_drop"]:
         if metric not in metrics_names_to_fn_names:
             print(
@@ -92,8 +97,9 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
                 name_feature = f"{metric}_{aggregate_function_names}"
                 names_feature_dropped.add(name_feature)
                 if name_feature in df_features.columns:
-                    df_features = df_features.drop(columns=[name_feature])
+                    features_to_keep.remove(name_feature)
                 n_dropped_features += 1
+    df_features = df_features[features_to_keep]
     if verbose >= 1:
         print(f"\tDropped {n_dropped_features} features from metrics")
 
@@ -101,9 +107,10 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
     if verbose >= 1:
         print("\tDropping features...")
     n_dropped_features = 0
+    features_to_keep = df_features.columns.tolist().copy()
     for name_feature in features_config["features_to_drop"]:
         if (
-            name_feature not in df_features.columns
+            name_feature not in features_to_keep
             and name_feature not in names_feature_dropped
         ):
             print(
@@ -112,8 +119,9 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
         else:
             if verbose >= 2:
                 print(f"\t\tDropping {name_feature}")
-            df_features = df_features.drop(columns=[name_feature])
+            features_to_keep.remove(name_feature)
             n_dropped_features += 1
+    df_features = df_features[features_to_keep]
     if verbose >= 1:
         print(f"\tDropped {n_dropped_features} features")
 
@@ -121,16 +129,18 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
     if verbose >= 1:
         print("\tDropping aggregate features...")
     n_dropped_features = 0
+    features_to_keep = df_features.columns.tolist().copy()
     for fn_agg in features_config["fn_agg_to_drop"]:
         if verbose >= 2:
             print(f"\t\tDropping aggregate features with {fn_agg}:")
         for metric in metrics_names_to_fn_names.keys():
             feature = f"{metric}_{fn_agg}"
-            if feature in df_features.columns:
+            if feature in features_to_keep:
                 if verbose >= 2:
                     print(f"\t\t\tDropping aggregate feature {feature}")
-                df_features = df_features.drop(columns=[f"{metric}_{fn_agg}"])
+                features_to_keep.remove(f"{metric}_{fn_agg}")
                 n_dropped_features += 1
+    df_features = df_features[features_to_keep]
     if verbose >= 1:
         print(f"\tDropped {n_dropped_features} features")
 
