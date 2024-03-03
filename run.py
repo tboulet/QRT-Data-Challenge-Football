@@ -83,8 +83,7 @@ def create_features(
             teamfeatures_config=teamfeatures_config,
             data_path=data_path,
         )
-        # Replace infinities with NaN
-        df_teamfeatures = df_teamfeatures.replace({np.inf: np.nan, -np.inf: np.nan})
+
         # Drop features
         df_teamfeatures = drop_features(
             df_features=df_teamfeatures,
@@ -115,10 +114,6 @@ def create_features(
         dfs = []
         for df_playerfeature_side in [df_playerfeatures_home, df_playerfeatures_away]:
 
-            # Replace infinities with NaN
-            df_playerfeature_side = df_playerfeature_side.replace(
-                {np.inf: np.nan, -np.inf: np.nan}
-            )
             # Drop features
             df_playerfeature_side = drop_features(
                 df_features=df_playerfeature_side,
