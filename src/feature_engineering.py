@@ -237,11 +237,11 @@ def impute_missing_values(
     return df_features
 
 
-def add_home_and_away_team_name_identifier_features(
+def add_team_couple_info(
     df_features: pd.DataFrame,
     features_config: dict,
 ) -> pd.DataFrame:
-    """Try to add features to the dataframe to identify the home and away team names.
+    """Try to add features to the dataframe to identify the home and away team names and the prior winrate of the home team.
     It requires to have previously run "python compute_team_name_to_id_mapping" to generate the team_mapping.csv file, which is used to map the team names to their identifiers.
     For test data, because it does not contains the team names, it will requires to use a predictor to predict the team names.
 
@@ -255,14 +255,20 @@ def add_home_and_away_team_name_identifier_features(
 
     verbose = try_get("verbose", features_config, default=0)
     if verbose >= 1:
-        print("\tAdding home and away team name identifier features")
+        print("\tAdding team couple info")
 
     # Load the team mapping CSV file
     try:
         team_mapping_df = pd.read_csv("data/team_mapping.csv")
     except FileNotFoundError:
         raise FileNotFoundError(
-            "The data/team_mapping.csv file is missing. Please run 'python compute_team_name_to_id_mapping' to generate it."
+            "The data/team_mapping.csv file is missing. Please run 'python compute_team_name_to_id_mapping.py' to generate it."
+        )
+    try:
+        win_rates_df = pd.read_csv("data/win_rates.csv")
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            "The data/win_rates.csv file is missing. Please run 'python compute_couple_team_name_to_winrate.py' to generate it."
         )
 
     # If HOME_TEAM_NAME is not in the dataframe, it means that it is the test data, and we need to predict the team names
@@ -308,12 +314,8 @@ def add_home_and_away_team_name_identifier_features(
             df_features[f"{team_name}_AWAY"] = (
                 df_features["AWAY_TEAM_NAME"] == team_name
             ).astype(int)
-    
+
     if features_config["add_team_winrate"]:
-        # Read win rates CSV
-        win_rates_df = pd.read_csv("win_rates.csv")
-        # Read team mapping CSV
-        team_mapping_df = pd.read_csv("team_mapping.csv")
 
         # Merge with team mapping dataframe to get identifiers
         df_features = df_features.merge(

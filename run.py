@@ -33,7 +33,7 @@ from src.data_loading import (
     load_teamfeatures,
 )
 from src.feature_engineering import (
-    add_home_and_away_team_name_identifier_features,
+    add_team_couple_info,
     add_non_null_indicator_features,
     get_agg_playerfeatures_by_operation,
     drop_features,
@@ -101,7 +101,7 @@ def create_features(
             features_config=teamfeatures_config,
         )
         # Add team name features
-        df_teamfeatures = add_home_and_away_team_name_identifier_features(
+        df_teamfeatures = add_team_couple_info(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
         )
@@ -293,7 +293,7 @@ def main(config: DictConfig):
             accuracy_train = accuracy_score(labels_train, preds_train)
             metric_results["accuracy_train"] = accuracy_train
             print(f"Accuracy train: {accuracy_train}")
-            
+
             # Cross validation metrics
             if K >= 2:
                 preds_val = trainer.predict(dataframe=df_val)
@@ -305,20 +305,24 @@ def main(config: DictConfig):
             if do_test_pred:
                 labels_pred_test = trainer.predict(df_test)
                 list_label_preds_test.append(labels_pred_test)
-                
 
             # Save time metrics
-            metric_results.update({f"time {key}": value for key, value in rm.stage_name_to_runtime.items()})
+            metric_results.update(
+                {
+                    f"time {key}": value
+                    for key, value in rm.stage_name_to_runtime.items()
+                }
+            )
             for metric_name, metric_value in metric_results.items():
                 dict_list_metrics[metric_name].append(metric_value)
-                
+
         # Log metrics
         if do_cli:
             print(f"Metrics: {metric_results}")
 
     if do_test_pred:
         save_predictions(list_label_preds_test, path="predictions.csv")
-        
+
     # Conclude
     print()
     for metric_name, list_metric in dict_list_metrics.items():
