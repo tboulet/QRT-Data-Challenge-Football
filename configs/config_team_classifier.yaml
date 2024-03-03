@@ -1,0 +1,140 @@
+# Hyperparameters
+seed : 
+do_shuffle : False
+n_data_max : null
+cross_val_folds : 2
+do_test_pred : False
+
+# Logging
+do_wandb : False
+wandb_config:
+  project : wandb_project_example
+  entity : wandb_entity_example
+do_tb : True
+do_cli : False
+do_tqdm : True
+
+# ---------- Team features ----------
+teamfeatures_config :
+
+  # The team metrics we will drop (e.g. HOME_TEAM_SHOTS_TOTAL)
+  metrics_to_drop : []
+
+  # The team features we will drop (e.g. HOME_TEAM_SHOTS_TOTAL_season_std)
+  features_to_drop: []
+
+  # The aggregation functions we will drop (e.g. season_std)
+  fn_agg_to_drop:
+    - season_average
+    - season_std
+    - 5_last_match_sum
+    - 5_last_match_average
+    - 5_last_match_std
+  
+  # Threshold for dropping features if correlation is above
+  threshold_correlation_drop : 0.80
+
+  # Whether to add non-null indicator features. The first boolean adds non-null indicator for each feature.
+  # The second boolean adds non-null indicator for the set of feature associated with each metric.
+  # This means the indicator will be 1 only if all feature related to the metric are non-null.
+  add_non_null_indicator_feature : True
+  add_non_null_indicator_metric : True
+
+  # The imputation method to use (e.g. median, mean, mode, etc.)
+  # If null or False, no imputation will be done.
+  imputation_method : median
+
+  # The maximum number of data to use. If null, all data will be used.
+  n_data_max : 1000
+
+  # The verbosity level. If 0, silent. If 1, print each phase. If 2, print information at each operation.
+  verbose : 0
+
+# ---------- Player features ----------
+playerfeatures_config :
+
+  # The player metrics we will drop (e.g. PLAYER_LONG_BALLS)
+  metrics_to_drop :
+    # We drop those metrics as they are 100% null
+    - PLAYER_LONG_BALLS
+    - PLAYER_LONG_BALLS_WON
+    - PLAYER_SHOTS_OFF_TARGET
+    # Potentially drop cause its (71% ,33%)
+    # - PLAYER_PUNCHES  
+    # Potentially drop cause its (40 ,30%)
+    # - PLAYER_ACCURATE_PASSES_PERCENTAGE  
+  
+  # The player features we will drop (e.g. PLAYER_CAPTAIN_season_average)
+  features_to_drop:
+    # We drop those PLAYER_CAPTAIN features are null everywhere (but not PLAYER_CAPTAIN_season_sum and PLAYER_CAPTAIN_5_last_match_sum)
+    - PLAYER_CAPTAIN_season_average
+    - PLAYER_CAPTAIN_5_last_match_average
+    - PLAYER_CAPTAIN_season_std
+    - PLAYER_CAPTAIN_5_last_match_std
+    # Features to drop cause too much correlation
+    # - PLAYER_CLEARANCE_OFFLINE_season_std
+    # - PLAYER_CLEARANCE_OFFLINE_5_last_match_std
+    # - PLAYER_ERROR_LEAD_TO_GOAL_season_std
+    # - PLAYER_ERROR_LEAD_TO_GOAL_5_last_match_std
+    # - PLAYER_HIT_WOODWORK_season_std
+    # - PLAYER_HIT_WOODWORK_5_last_match_std
+    # - PLAYER_OWN_GOALS_season_std
+    # - PLAYER_OWN_GOALS_5_last_match_std
+
+  # The aggregation functions we will drop (e.g. season_std)
+  fn_agg_to_drop:
+    - season_average
+    - season_std
+    - 5_last_match_sum
+    - 5_last_match_average
+    - 5_last_match_std
+
+  # Threshold for dropping features if correlation is above
+  threshold_correlation_drop : 0.80
+
+  # Whether to add non-null indicator features. The first boolean adds non-null indicator for each feature.
+  # The second boolean adds non-null indicator for the set of feature associated with each metric.
+  # This means the indicator will be 1 only if all feature related to the metric are non-null.
+  add_non_null_indicator_feature : False
+  add_non_null_indicator_metric : False
+
+  # The imputation method to use (e.g. median, mean, mode, etc.)
+  # If null or False, no imputation will be done.
+  imputation_method : median
+
+  # Whether to add team name identifier, and team name indicator (i.e. one-hot encoding of team name).
+  # As this is not in the test data, having do_test_pred set to True will requires a model that can predict team name from test features.
+  add_team_name_identifier : False
+  add_team_name_indicator : False
+  add_team_winrate : True
+
+  
+  # The maximum number of data to use. If null, all data will be used.
+  n_data_max : 1000  # !!!
+
+  # The verbosity level. If 0, silent. If 1, print each phase. If 2, print information at each operation.
+  verbose : 0
+
+
+# ---------- Aggregator ----------
+aggregator_config :
+  role_grouping:
+    - ALL
+    # - ATK
+  operations:
+    - mean
+    # - min
+
+# Defaults sub-configs and other Hydra config.
+defaults:
+  - _self_
+  - trainer : xgb
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled 
+
+
+# Hydra config, do not change.
+hydra:
+  output_subdir: null
+  run:
+    dir: .
