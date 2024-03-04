@@ -90,6 +90,12 @@ def create_features(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
         )
+        # Add team name features
+        df_teamfeatures = add_team_couple_info(
+            df_features=df_teamfeatures,
+            features_config=teamfeatures_config,
+            data_path=data_path,
+        )
         # Add non-null indicator features
         df_teamfeatures = add_non_null_indicator_features(
             df_features=df_teamfeatures,
@@ -99,12 +105,6 @@ def create_features(
         df_teamfeatures = impute_missing_values(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
-        )
-        # Add team name features
-        df_teamfeatures = add_team_couple_info(
-            df_features=df_teamfeatures,
-            features_config=teamfeatures_config,
-            data_path=data_path,
         )
 
         print("[Shapes] Teamfeatures shape: ", df_teamfeatures.shape)
