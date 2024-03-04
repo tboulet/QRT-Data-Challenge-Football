@@ -27,8 +27,7 @@ from src.constants import SPECIFIC_PLAYERFEATURES
 from trainers import trainer_name_to_TrainerClass
 from src.time_measure import RuntimeMeter
 from src.data_loading import (
-    load_dataframe_labels,
-    load_index_numpy_labels,
+    load_index_numpy_labels_team_identifier,
     load_playerfeatures,
     load_teamfeatures,
 )
@@ -45,6 +44,7 @@ from src.data_management import (
     cut_data_to_n_data_max,
     merge_dfs,
     save_predictions,
+    save_team_identifier_predictions,
     shuffle_data,
 )
 from src.utils import (
@@ -54,7 +54,7 @@ from src.utils import (
 )
 
 
-def create_features(
+def create_features_for_team_classification(
     teamfeatures_config: Dict[str, dict],
     playerfeatures_config: Dict[str, dict],
     aggregator_config: Dict[str, dict],
@@ -84,7 +84,6 @@ def create_features(
             teamfeatures_config=teamfeatures_config,
             data_path=data_path,
         )
-
         # Drop features
         df_teamfeatures = drop_features(
             df_features=df_teamfeatures,
@@ -100,12 +99,7 @@ def create_features(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
         )
-        # Add team name features
-        df_teamfeatures = add_team_couple_info(
-            df_features=df_teamfeatures,
-            features_config=teamfeatures_config,
-            data_path=data_path,
-        )
+        # <!> Dont add team couple info because that's what we want to predict
 
         print("[Shapes] Teamfeatures shape: ", df_teamfeatures.shape)
 
@@ -201,11 +195,34 @@ def create_features(
             errors="ignore",
         )
 
-    print(f"[Shapes] Final features shape: {dataframe.shape}")
-    return dataframe
+        # Verify that all features start with "HOME_" or "AWAY_"
+        home_features = [col for col in dataframe.columns if col.startswith("HOME_")]
+        away_features = [col for col in dataframe.columns if col.startswith("AWAY_")]
+
+        if len(home_features) + len(away_features) != dataframe.shape[1]:
+            print("Error: Not all features start with 'HOME_' or 'AWAY_'.")
+        else:
+            # Create a new dataframe to store the team features without the side prefix
+            team_features_df = pd.DataFrame()
+
+            # Iterate through each pair of features (HOME and AWAY) and remove the prefix
+            for home_feature, away_feature in zip(home_features, away_features):
+                feature_name = home_feature.split("HOME_")[
+                    1
+                ]  # Remove the "HOME_" prefix
+                home_values = dataframe[home_feature]
+                away_values = dataframe[away_feature]
+
+                # Create a column for the feature without the side prefix
+                team_features_df[feature_name] = pd.concat(
+                    [home_values, away_values], ignore_index=True
+                )
+
+    print(f"[Shapes] Final features shape: {team_features_df.shape}")
+    return team_features_df
 
 
-@hydra.main(config_path="configs", config_name="config_default.yaml")
+@hydra.main(config_path="configs", config_name="config_team_classifier.yaml")
 def main(config: DictConfig):
 
     # Get the config values from the config object.
@@ -232,21 +249,19 @@ def main(config: DictConfig):
     trainer_config = config["trainer"]["config"]
     trainer = TrainerClass(trainer_config)
 
-    # Get the teamfeature config, playerfeature config, and aggregator config
-
     # Initialize loggers
     run_name = f"[{name_trainer}]_{datetime.datetime.now().strftime('%dth%mmo_%Hh%Mmin%Ss')}_seed{seed}"
     print(f"\nStarting run {run_name}")
 
     # Load the features
-    df = create_features(
+    df = create_features_for_team_classification(
         teamfeatures_config=config["teamfeatures_config"],
         playerfeatures_config=config["playerfeatures_config"],
         aggregator_config=config["aggregator_config"],
         data_path="data_train",
     )
     if do_test_pred:
-        df_test = create_features(
+        df_test = create_features_for_team_classification(
             teamfeatures_config=config["teamfeatures_config"],
             playerfeatures_config=config["playerfeatures_config"],
             aggregator_config=config["aggregator_config"],
@@ -261,12 +276,14 @@ def main(config: DictConfig):
     # Limit the data to a subset for debugging
     cut_data_to_n_data_max(df, n_data_max)
 
-    # Get the y_data out of the features, and remove it from the features.
-    labels = load_index_numpy_labels(global_data_path="./data_train/")
+    # Get the team labels
+    labels_team_identifier = load_index_numpy_labels_team_identifier(
+        global_data_path="./data_train/"
+    )
 
     # Start the KFold loop for Cross Validation
     dict_list_metrics = defaultdict(list)
-    list_label_preds_test: List[np.ndarray] = []
+    list_labels_team_identifier_preds_test: List[np.ndarray] = []
     kf = KFold(n_splits=K)
 
     for k, (train_index, val_index) in enumerate(kf.split(df)):
@@ -275,14 +292,14 @@ def main(config: DictConfig):
         # Split the data
         df_train = df.iloc[train_index]
         df_val = df.iloc[val_index]
-        labels_train = labels[train_index]
-        labels_val = labels[val_index]
+        labels_team_identifier_train = labels_team_identifier[train_index]
+        labels_team_identifier_val = labels_team_identifier[val_index]
 
         # Train the model
         with RuntimeMeter("training") as rm:
             trainer.train(
                 dataframe_train=df_train,
-                labels_train=labels_train,
+                labels_train=labels_team_identifier_train,
             )
 
         # Evaluate the model
@@ -291,22 +308,26 @@ def main(config: DictConfig):
 
             # Train metrics
             preds_train = trainer.predict(df_train)
-            accuracy_train = accuracy_score(labels_train, preds_train)
+            accuracy_train = accuracy_score(labels_team_identifier_train, preds_train)
             metric_results["accuracy_train"] = accuracy_train
             print(f"Accuracy train: {accuracy_train}")
 
             # Cross validation metrics
             if K >= 2:
                 preds_val = trainer.predict(dataframe=df_val)
-                accuracy_val = accuracy_score(labels_val, preds_val)
+                accuracy_val = accuracy_score(labels_team_identifier_val, preds_val)
                 metric_results["accuracy_val"] = accuracy_val
                 print(f"Accuracy val: {accuracy_val}")
 
             # Test metrics
             if do_test_pred:
-                labels_pred_test = trainer.predict(df_test)
-                list_label_preds_test.append(labels_pred_test)
-
+                print("df_test: ", df_test)
+                labels_team_identifier_pred_test = trainer.predict(df_test)
+                list_labels_team_identifier_preds_test.append(
+                    labels_team_identifier_pred_test
+                )
+                print(f"Labels team identifier pred test: {labels_team_identifier_pred_test}, shape: {labels_team_identifier_pred_test.shape}")
+                        
             # Save time metrics
             metric_results.update(
                 {
@@ -322,7 +343,10 @@ def main(config: DictConfig):
             print(f"Metrics: {metric_results}")
 
     if do_test_pred:
-        save_predictions(list_label_preds_test, path="predictions.csv")
+        save_team_identifier_predictions(
+            list_labels_team_identifier_preds_test,
+            path="data/team_identifier_predictions.csv",
+        )
 
     # Conclude
     print()

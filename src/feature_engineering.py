@@ -240,6 +240,7 @@ def impute_missing_values(
 def add_team_couple_info(
     df_features: pd.DataFrame,
     features_config: dict,
+    data_path: str,
 ) -> pd.DataFrame:
     """Try to add features to the dataframe to identify the home and away team names and the prior winrate of the home team.
     It requires to have previously run "python compute_team_name_to_id_mapping" to generate the team_mapping.csv file, which is used to map the team names to their identifiers.
@@ -248,6 +249,7 @@ def add_team_couple_info(
     Args:
         df_features (pd.DataFrame): the dataframe to add the features to
         features_config (dict): the config for the features
+        data_path (str): the path to the data folder
 
     Returns:
         pd.DataFrame: the dataframe with the home and away team identifier features added
@@ -259,23 +261,16 @@ def add_team_couple_info(
 
     # Load the team mapping CSV file
     try:
-        team_mapping_df = pd.read_csv("data/team_mapping.csv")
+        team_mapping_df = pd.read_csv(f"data/team_mapping.csv")
     except FileNotFoundError:
         raise FileNotFoundError(
-            "The data/team_mapping.csv file is missing. Please run 'python compute_team_name_to_id_mapping.py' to generate it."
+            f"The file team_mapping.csv is missing. Please run 'python compute_team_name_to_id_mapping.py' to generate it."
         )
     try:
-        win_rates_df = pd.read_csv("data/win_rates.csv")
+        win_rates_df = pd.read_csv(f"data/win_rates.csv")
     except FileNotFoundError:
         raise FileNotFoundError(
-            "The data/win_rates.csv file is missing. Please run 'python compute_couple_team_name_to_winrate.py' to generate it."
-        )
-
-    # If HOME_TEAM_NAME is not in the dataframe, it means that it is the test data, and we need to predict the team names
-    if "HOME_TEAM_NAME" not in df_features.columns:
-        return df_features
-        raise ValueError(
-            "The HOME_TEAM_NAME column is missing from the dataframe. It is required to add the home and away team identifier features."
+            f"The file data/win_rates.csv is missing. Please run 'python compute_win_rates.py' to generate it."
         )
 
     if features_config["add_team_name_identifier"]:
@@ -318,13 +313,46 @@ def add_team_couple_info(
     if features_config["add_team_winrate"]:
 
         # Merge with team mapping dataframe to get identifiers
-        df_features = df_features.merge(
-            team_mapping_df, how="left", left_on="HOME_TEAM_NAME", right_on="Team_Name"
-        ).rename(columns={"Identifier": "identifier_HOME_ID"})
-        df_features = df_features.merge(
-            team_mapping_df, how="left", left_on="AWAY_TEAM_NAME", right_on="Team_Name"
-        ).rename(columns={"Identifier": "identifier_AWAY_ID"})
+        print(df_features.columns)
 
+        if data_path == "data_train":
+            # Add team identifier from the team_mapping.csv file (name to identifier)
+            df_features = df_features.merge(
+                team_mapping_df,
+                how="left",
+                left_on="HOME_TEAM_NAME",
+                right_on="Team_Name",
+            ).rename(columns={"Identifier": "identifier_HOME_ID"})
+            df_features = df_features.merge(
+                team_mapping_df,
+                how="left",
+                left_on="AWAY_TEAM_NAME",
+                right_on="Team_Name",
+            ).rename(columns={"Identifier": "identifier_AWAY_ID"})
+
+        elif data_path == "data_test":
+            # Add team identifier from the team_identifier_predictions.csv file (match ID to the two team identifiers)
+            print(df_features.columns)
+            predictions_df = pd.read_csv("data/team_identifier_predictions.csv")
+
+            df_merged = pd.merge(
+                df_features,
+                predictions_df,
+                left_on="ID",
+                right_on="match_id",
+                how="left",
+            )
+            df_merged.rename(
+                columns={
+                    "Identifier_home_pred": "identifier_HOME_ID",
+                    "Identifier_away_pred": "identifier_AWAY_ID",
+                },
+                inplace=True,
+            )
+            df_merged.drop(columns=["match_id"], inplace=True)
+            df_features = df_merged
+            print(df_features.columns)
+        
         # Merge with win rates dataframe to add win rates for home teams
         df_features = df_features.merge(
             win_rates_df[["HOME_TEAM_ID", "AWAY_TEAM_ID", "HOME_WINS_RATE"]],
@@ -335,18 +363,30 @@ def add_team_couple_info(
 
         # Rename and select columns
         df_features["WINRATE_HOME"] = df_features["HOME_WINS_RATE"]
-        df_features.drop(
-            columns=[
-                "identifier_HOME_ID",
-                "identifier_AWAY_ID",
-                "Team_Name_x",
-                "Team_Name_y",
-                "HOME_TEAM_ID",
-                "AWAY_TEAM_ID",
-                "HOME_WINS_RATE",
-            ],
-            inplace=True,
-        )
+        if data_path == "data_train":
+            df_features.drop(
+                columns=[
+                    "identifier_HOME_ID",
+                    "identifier_AWAY_ID",
+                    "Team_Name_x",
+                    "Team_Name_y",
+                    "HOME_TEAM_ID",
+                    "AWAY_TEAM_ID",
+                    "HOME_WINS_RATE",
+                ],
+                inplace=True,
+            )
+        elif data_path == "data_test":
+            df_features.drop(
+                columns=[
+                    "identifier_HOME_ID",
+                    "identifier_AWAY_ID",
+                    "HOME_TEAM_ID",
+                    "AWAY_TEAM_ID",
+                    "HOME_WINS_RATE",
+                ],
+                inplace=True,
+            )
 
     return df_features
 

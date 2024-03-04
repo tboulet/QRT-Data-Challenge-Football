@@ -9,7 +9,7 @@ team_names = set(df_teamfeatures_train["HOME_TEAM_NAME"]).union(
 )
 
 # Generate identifiers for each team name
-team_mapping = {team: idx for idx, team in enumerate(sorted(team_names), start=1)}
+team_mapping = {team: idx for idx, team in enumerate(sorted(team_names), start=0)}
 
 # Create a new DataFrame to store the mapping
 mapping_df = pd.DataFrame(
@@ -19,4 +19,4 @@ mapping_df = pd.DataFrame(
 # Save the mapping to a CSV file
 mapping_df.to_csv("data/team_mapping.csv", index=False)
 
-print("Team name to identifier mapping saved to data/team_mapping.csv")
+print("Team name to team identifier mapping saved to data/team_mapping.csv")

@@ -2,8 +2,8 @@
 seed : 
 do_shuffle : False
 n_data_max : null
-cross_val_folds : 2
-do_test_pred : False
+cross_val_folds : 10
+do_test_pred : True
 
 # Logging
 do_wandb : False
@@ -45,7 +45,7 @@ teamfeatures_config :
   imputation_method : median
 
   # The maximum number of data to use. If null, all data will be used.
-  n_data_max : 1000
+  n_data_max :
 
   # The verbosity level. If 0, silent. If 1, print each phase. If 2, print information at each operation.
   verbose : 0
@@ -102,15 +102,8 @@ playerfeatures_config :
   # If null or False, no imputation will be done.
   imputation_method : median
 
-  # Whether to add team name identifier, and team name indicator (i.e. one-hot encoding of team name).
-  # As this is not in the test data, having do_test_pred set to True will requires a model that can predict team name from test features.
-  add_team_name_identifier : False
-  add_team_name_indicator : False
-  add_team_winrate : True
-
-  
   # The maximum number of data to use. If null, all data will be used.
-  n_data_max : 1000  # !!!
+  n_data_max :
 
   # The verbosity level. If 0, silent. If 1, print each phase. If 2, print information at each operation.
   verbose : 0

@@ -59,8 +59,8 @@ def load_teamfeatures(
     add_prefix_to_columns(home_teamfeatures, "HOME_")
     add_prefix_to_columns(away_teamfeatures, "AWAY_")
     # Concatenate the home and away team features
-    dataframe_teamfeatures = merge_dfs([home_teamfeatures, away_teamfeatures], on = "ID")
-    
+    dataframe_teamfeatures = merge_dfs([home_teamfeatures, away_teamfeatures], on="ID")
+
     if verbose >= 1:
         print("\t[Shapes] Loaded teamfeatures shape: ", dataframe_teamfeatures.shape)
     return dataframe_teamfeatures
@@ -208,15 +208,70 @@ def load_index_numpy_labels(
     """Load the labels as an index numpy array.
 
     Args:
-        global_data_path (str): the path where all CSVs are. Defaults to 'datas_final/'.
+        global_data_path (str): the path where all CSVs are.
 
     Returns:
         np.ndarray: the labels, as an index numpy array of shape (n_data,).
     """
-    print("\tLoading labels...")
+    print("\nLoading labels...")
     labels = load_dataframe_labels(global_data_path)
     labels = labels.drop(columns=["ID"])
     labels = labels.to_numpy()
     labels = np.argmax(labels, axis=1)
-    print("\t[Shapes] Loaded labels shape: ", labels.shape)
+    print("[Shapes] Loaded labels shape: ", labels.shape)
     return labels
+
+
+def load_index_numpy_labels_team_identifier(
+    global_data_path: str,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """Load the team identifier as an index numpy array.
+
+    Args:
+        global_data_path (str): the path where all CSVs are.
+
+    Returns:
+        np.ndarray: the team identifier, as an index numpy array of shape (2 * n_data_train,).
+    """
+    print("\nLoading labels_team_identifier...")
+    # Load the mapping between team name and team identifier
+    team_mapping_df = pd.read_csv("data/team_mapping.csv")
+
+    # Create the mapping between team name and team identifier for the home team
+    home_team_df = pd.read_csv(f"{global_data_path}/home_team_statistics_df.csv")
+    home_merged_df = pd.merge(
+        home_team_df,
+        team_mapping_df,
+        left_on="TEAM_NAME",
+        right_on="Team_Name",
+        how="left",
+    )
+    home_mapping_df = home_merged_df[["ID", "Identifier"]]
+    home_mapping_df.columns = ["match_ID", "team_identifier"]
+
+    # Create the mapping between team name and team identifier for the away team
+    away_team_df = pd.read_csv(f"{global_data_path}/away_team_statistics_df.csv")
+    away_merged_df = pd.merge(
+        away_team_df,
+        team_mapping_df,
+        left_on="TEAM_NAME",
+        right_on="Team_Name",
+        how="left",
+    )
+    away_mapping_df = away_merged_df[["ID", "Identifier"]]
+    away_mapping_df.columns = ["match_ID", "team_identifier"]
+
+    # Concatenate the mapping between team name and team identifier for the home and away team
+    labels_team_identifier = pd.concat(
+        [home_mapping_df, away_mapping_df], ignore_index=True
+    )
+
+    # Drop the match_ID column
+    labels_team_identifier = labels_team_identifier.drop(columns=["match_ID"])
+
+    # Return as a numpy array of shape (2 * n_data_train,)
+    labels_team_identifier = labels_team_identifier.to_numpy().flatten()
+    print(
+        "[Shapes] Loaded labels_team_identifier shape: ", labels_team_identifier.shape
+    )
+    return labels_team_identifier

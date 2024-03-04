@@ -67,6 +67,43 @@ def save_predictions(
     print(f"Predictions saved to {path}")
 
 
+def save_team_identifier_predictions(
+    list_labels_team_identifier_preds_test : List[np.ndarray],
+    path: str,
+) -> None:
+    """Save the team identifier predictions to a CSV file.
+    list_labels_team_identifier_preds_test is a list of team_identifier_preds_test, which is a
+    numpy array of shape (2 * n_matches,) containing the predictions for the team identifier.
+    The predictions can go from 0 to 349, and are the team identifiers.
+
+    Args:
+        list_labels_team_identifier_preds_test (List[np.ndarray]): the list of predictions from the different K folds.
+        path (str): the path where to save the predictions.
+    """
+    labels_team_identifier_preds_test = np.stack(list_labels_team_identifier_preds_test, axis=1)
+    n_data_test = labels_team_identifier_preds_test.shape[0]
+    majority_elements = np.apply_along_axis(
+        lambda x: np.bincount(x).argmax(), axis=1, arr=labels_team_identifier_preds_test
+    )
+    assert n_data_test % 2 == 0, "The number of data should be even."
+    n_matches = n_data_test // 2
+    print(f"majority_elements : {majority_elements}, shape : {majority_elements.shape}")
+    team_identifier_pred_test_home = majority_elements[:n_matches]
+    team_identifier_pred_test_away = majority_elements[n_matches:]
+    df = pd.DataFrame(
+        {
+            "Identifier_home_pred": team_identifier_pred_test_home,
+            "Identifier_away_pred": team_identifier_pred_test_away,
+        },
+        index=range(12303, 12303 + n_matches, 1),
+    )
+    print("df : ", df, "df shape : ", df.shape)
+    df.index.name = "match_id"
+    df.to_csv(path)
+    print(f"Predictions saved to {path}")
+    
+    
+    
 def add_prefix_to_columns(
     dataframe: pd.DataFrame,
     prefix: str,

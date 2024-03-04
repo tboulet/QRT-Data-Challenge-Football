@@ -44,8 +44,12 @@ teamfeatures_config :
   # If null or False, no imputation will be done.
   imputation_method : median
 
-  # Whether to add team name identifier, and team name indicator (i.e. one-hot encoding of team name).
-  # As this is not in the test data, having do_test_pred set to True will requires a model that can predict team name from test features.
+  # Team name related statistics. This will add features related to both team names. In particular :
+  # - Team name identifier adds 2 feature identifying the home and away team.
+  # - Team name indicator adds one-hot encoding of the team name (so 2 * 350 features...)
+  # - Team winrate adds the average winrate of home team against away team, from statistics computed on the training data.
+  # For the train dataset, this will use the file 'data/team_mapping.csv' to map team names to a unique identifier. This requires you to run the script 'compute_team_name_to_id_mapping.py' before.
+  # For the test dataset, this will the predictions made by a "team predictor" in advance, in the file "data/team_identifier_predictions.csv". This requires to train a model with the script "train_team_classifier.py" before.
   add_team_name_identifier : False
   add_team_name_indicator : False
   add_team_winrate : True
