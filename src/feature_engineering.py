@@ -191,7 +191,6 @@ def add_non_null_indicator_features(
                     n_added_feature_is_not_null += 1
     if verbose >= 1:
         print(f"\tAdded {n_added_feature_is_not_null} features")
-    raise
     return df_features
 
 
