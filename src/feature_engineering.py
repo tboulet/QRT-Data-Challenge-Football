@@ -168,8 +168,7 @@ def add_non_null_indicator_features(
     for metric, fn_names in get_metrics_names_to_fn_names(df_features).items():
         if metric not in SPECIFIC_PLAYERFEATURES + SPECIFIC_TEAMFEATURES:
             if verbose >= 2:
-                print(f"\t\tAdding feature is_not_null for metric {metric}")
-            print(fn_names)
+                print(f"\t\tAdding features is_not_null for metric {metric}")
             # Adding the metric is not null feature if features_config["add_non_null_indicator_metric"]. Don't add if features_config["add_non_null_indicator_feature"] and there is only one aggregate function for the metric
             if features_config["add_non_null_indicator_metric"] and (len(fn_names) > 1 or not features_config["add_non_null_indicator_feature"]):
                 df_features[metric + "_is_not_null"] = (
@@ -179,7 +178,6 @@ def add_non_null_indicator_features(
                     .astype(int)
                 )
                 n_added_feature_is_not_null += 1
-                print(f"Added {metric}_is_not_null")
             # Adding the feature is not null for each aggregate function if features_config["add_non_null_indicator_feature"] and there is more than one aggregate function for the metric (or if features_config["add_non_null_indicator_metric"] is False)
             if features_config["add_non_null_indicator_feature"]:
                 for fn_name in fn_names:
@@ -187,7 +185,6 @@ def add_non_null_indicator_features(
                     df_features[f"{feature_name}_is_not_null"] = (
                         df_features[f"{feature_name}"].notnull().astype(int)
                     )
-                    print(f"Added {feature_name}_is_not_null")
                     n_added_feature_is_not_null += 1
     if verbose >= 1:
         print(f"\tAdded {n_added_feature_is_not_null} features")
@@ -310,9 +307,6 @@ def add_team_couple_info(
 
     if features_config["add_team_winrate"]:
 
-        # Merge with team mapping dataframe to get identifiers
-        print(df_features.columns)
-
         if data_path == "data_train":
             # Add team identifier from the team_mapping.csv file (name to identifier)
             df_features = df_features.merge(
@@ -330,7 +324,6 @@ def add_team_couple_info(
 
         elif data_path == "data_test":
             # Add team identifier from the team_identifier_predictions.csv file (match ID to the two team identifiers)
-            print(df_features.columns)
             predictions_df = pd.read_csv("data/team_identifier_predictions.csv")
 
             df_merged = pd.merge(
@@ -349,7 +342,6 @@ def add_team_couple_info(
             )
             df_merged.drop(columns=["match_id"], inplace=True)
             df_features = df_merged
-            print(df_features.columns)
         
         # Merge with win rates dataframe to add win rates for home teams
         df_features = df_features.merge(
