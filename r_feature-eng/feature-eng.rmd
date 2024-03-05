@@ -36,6 +36,7 @@ library(dplyr)
 # load home and away team statistics
 team_home <- read_csv("../datas_final/train_home_team_statistics_df.csv")
 team_away <- read_csv("../datas_final/train_away_team_statistics_df.csv")
+Y <- read_csv("../datas_final/Y_train.csv")
 
 # load home and away player statistics
 player_home <- read_csv("../datas_final/train_home_player_statistics_df.csv")
@@ -108,6 +109,27 @@ player_away_tensor <- createTensor(player_away)
 
 
 # TGCCA for feature engineering
+Our aim is to use RGCCA with 4 blocs (teams features and players features, for both home and away teams) to predict the Y variable, in a "bow tie" structure. 
 ```{r}
-#TODO
+L = list(team_home, player_home, team_away, player_away, Y)
+C = matrix(c(0,1,0,0,1,
+              1,0,0,0,1,
+              0,0,0,1,1,
+              0,0,1,0,1,
+              1,1,1,1,0), nrow = 5, ncol = 5)
+```
+
+
+```{r}
+cv_out = rgcca_cv(L,
+                  response = 5,
+                  par_type = "sparsity",
+                  par_length = 10,
+                  ncomp = 1,
+                  prediction_model = "lda",
+                  metric = "Balanced_Accuracy",
+                  k = 3,
+                  n_runs = 3,
+                  n_cores = 8)
+summary(cv_out)
 ```
