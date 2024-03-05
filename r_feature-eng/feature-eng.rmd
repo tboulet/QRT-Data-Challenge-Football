@@ -1,5 +1,5 @@
 ---
-title: "RGCCA for Feature Engineering"
+title: "RGCCA for Feature Engineering - QRT Football data challenge 2024"
 author: "Théo Saulus, Timothé Boulet"
 date: '`r Sys.Date()`'
 output:
@@ -20,10 +20,94 @@ knitr::opts_chunk$set(echo = TRUE, fig.height=7, fig.width=8)
 
 # Load packages
 ```{r}
+# set working directory to current folder
+current_dir = dirname(rstudioapi::getSourceEditorContext()$path)
+setwd(dirname(current_dir))
+
+library(readr)
 library(RGCCA)
+library(tidyverse)
+library(abind) # For array binding
+library(dplyr)
 ```
 
 # Load data 
 ```{r}
-data()
+# load home and away team statistics
+team_home <- read_csv("../datas_final/train_home_team_statistics_df.csv")
+team_away <- read_csv("../datas_final/train_away_team_statistics_df.csv")
+
+# load home and away player statistics
+player_home <- read_csv("../datas_final/train_home_player_statistics_df.csv")
+player_away <- read_csv("../datas_final/train_away_player_statistics_df.csv")
+
+# Rename column ID to ID_team in player_away
+colnames(player_away)[1] <- "ID_team"
+
+# Filter features to remove "LEAGUE", "TEAM_NAME", "POSITION", "PLAYER_NAME" 
+player_home <- player_home %>% select(-c(2:5))
+player_away <- player_away %>% select(-c(2:5))
+
+# Filter features that end with season_average, season_std, 5_last_match_sum, 5_last_match_average, 5_last_match_std
+player_home <- player_home %>% select(-c(ends_with("season_average"), ends_with("season_std"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
+player_away <- player_away %>% select(-c(ends_with("season_average"), ends_with("season_std"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
+
+# Filter features that start with PLAYER_CAPTAIN, PLAYER_LONG_BALLS, PLAYER_LONG_BALLS_WON, PLAYER_SHOTS_OFF_TARGET
+player_home <- player_home %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET")))
+player_away <- player_away %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET")))
+
+
+```
+
+# Structuring 2nd order tensors for players
+```{r}
+createTensor <- function(dataframe) {
+  # Identify unique teams and sort to maintain consistent order
+  teams <- sort(unique(dataframe$ID_team))
+  
+  # Find the maximum number of players in any team
+  maxPlayers <- max(table(dataframe$ID_team))
+  
+  # Number of features per player (excluding the ID_team column)
+  numFeatures <- ncol(dataframe) - 1
+  
+  # Initialize an empty array to hold the tensor
+  # The dimensions are: maxPlayers x numFeatures x length(teams)
+  tensor <- array(NA, dim = c(maxPlayers, numFeatures, length(teams)))
+
+  print(paste("Tensor dimensions: ", maxPlayers, "*", numFeatures, "*", length(teams)))
+  
+  # Fill the tensor with data
+  for (i in seq_along(teams)) {
+    # Print team number every 500 teams
+    if (i %% 500 == 0) {
+      print(paste("Processing team", i, "of", length(teams)))
+    }
+
+    teamData <- subset(dataframe, ID_team == teams[i])
+    
+    # Ensure data is ordered or filtered as needed before this step
+    playerData <- as.matrix(teamData[,-1]) # Exclude ID_team column
+    
+    # Determine how many players this team has
+    numPlayers <- nrow(playerData)
+    
+    # Fill the tensor for this team
+    # If a team has fewer players, remaining slots will stay as NA
+    tensor[1:numPlayers,,i] <- playerData
+  }
+  
+  return(tensor)
+}
+```
+
+```{r}
+player_home_tensor <- createTensor(player_home)
+player_away_tensor <- createTensor(player_away)
+```
+
+
+# TGCCA for feature engineering
+```{r}
+#TODO
 ```
