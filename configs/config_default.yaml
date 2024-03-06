@@ -53,6 +53,8 @@ teamfeatures_config :
   add_team_name_identifier : False
   add_team_name_indicator : False
   add_team_winrate : True
+  # Whether to balance statistics.
+  balance_train_stats : True
 
   # The maximum number of data to use. If null, all data will be used.
   n_data_max : null

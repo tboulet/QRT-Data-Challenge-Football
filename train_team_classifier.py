@@ -1,5 +1,6 @@
 # Logging
 from collections import defaultdict
+import os
 import wandb
 from tensorboardX import SummaryWriter
 
@@ -42,6 +43,7 @@ from src.feature_engineering import (
 from src.data_management import (
     add_prefix_to_columns,
     cut_data_to_n_data_max,
+    insert_col_in_csv,
     merge_dfs,
     save_predictions,
     save_team_identifier_predictions,
@@ -134,13 +136,6 @@ def create_features_for_team_classification(
             dfs.append(df_playerfeature_side)
 
         df_playerfeatures_home, df_playerfeatures_away = dfs
-
-        # # Group playerfeatures by match and by team
-        # print("Grouping playerfeatures by match and by team...")
-        # matchID_to_side_to_playerfeatures = group_playerfeatures_by_match_and_by_team(
-        #     df_playerfeatures_home=df_playerfeatures_home,
-        #     df_playerfeatures_away=df_playerfeatures_away,
-        # )
 
         # Concatenate the playerfeatures
         print("\tConcatenating playerfeatures...")
@@ -274,7 +269,7 @@ def main(config: DictConfig):
         shuffle_data(df)
 
     # Limit the data to a subset for debugging
-    cut_data_to_n_data_max(df, n_data_max)
+    df = cut_data_to_n_data_max(df, n_data_max)
 
     # Get the team labels
     labels_team_identifier = load_index_numpy_labels_team_identifier(
@@ -294,7 +289,8 @@ def main(config: DictConfig):
         df_val = df.iloc[val_index]
         labels_team_identifier_train = labels_team_identifier[train_index]
         labels_team_identifier_val = labels_team_identifier[val_index]
-
+        print(f"Shapes: df_train: {df_train.shape}, df_val: {df_val.shape}")
+        
         # Train the model
         with RuntimeMeter("training") as rm:
             trainer.train(
@@ -321,13 +317,39 @@ def main(config: DictConfig):
 
             # Test metrics
             if do_test_pred:
-                print("df_test: ", df_test)
                 labels_team_identifier_pred_test = trainer.predict(df_test)
                 list_labels_team_identifier_preds_test.append(
                     labels_team_identifier_pred_test
                 )
-                print(f"Labels team identifier pred test: {labels_team_identifier_pred_test}, shape: {labels_team_identifier_pred_test.shape}")
-                        
+                n_teams = len(labels_team_identifier_pred_test)
+                assert n_teams % 2 == 0, f"Error: n_teams={n_teams} is not even."
+                n_matches = n_teams // 2
+                labels_team_identifier_pred_test_home = labels_team_identifier_pred_test[:n_matches]
+                labels_team_identifier_pred_test_away = labels_team_identifier_pred_test[n_matches:]
+                
+                team_mapping_df = pd.read_csv("data/team_mapping.csv")
+                team_mapping_df['Identifier'] = team_mapping_df['Identifier'].astype('int64')
+
+                corresponding_team_names_home_df = pd.merge(pd.DataFrame(labels_team_identifier_pred_test_home, columns=['Identifier']),
+                                    team_mapping_df,
+                                    on='Identifier',
+                                    how='left')['Team_Name']
+                insert_col_in_csv(
+                    path="data_test/home_team_statistics_df.csv",
+                    values=corresponding_team_names_home_df.to_numpy(),
+                    col_name="TEAM_NAME",
+                )
+                
+                corresponding_team_names_away_df = pd.merge(pd.DataFrame(labels_team_identifier_pred_test_away, columns=['Identifier']),
+                                    team_mapping_df,
+                                    on='Identifier',
+                                    how='left')['Team_Name']
+                insert_col_in_csv(
+                    path="data_test/away_team_statistics_df.csv",
+                    values=corresponding_team_names_away_df,
+                    col_name="TEAM_NAME",
+                )
+                
             # Save time metrics
             metric_results.update(
                 {
@@ -346,6 +368,7 @@ def main(config: DictConfig):
         save_team_identifier_predictions(
             list_labels_team_identifier_preds_test,
             path="data/team_identifier_predictions.csv",
+            idx_start=0,
         )
 
     # Conclude
