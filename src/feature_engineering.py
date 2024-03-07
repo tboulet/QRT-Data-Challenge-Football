@@ -21,7 +21,7 @@ import cProfile
 import numpy as np
 from src.constants import SPECIFIC_PLAYERFEATURES, SPECIFIC_TEAMFEATURES
 from src.data_analysis import get_metrics_names_to_fn_names
-from src.data_loading import load_dataframe_labels
+from src.data_loading import load_dataframe_labels, load_importance_factors
 from src.time_measure import RuntimeMeter
 from src.utils import get_name_trainer_and_features, try_get, try_get_seed
 from sklearn.utils import shuffle
@@ -455,3 +455,128 @@ def group_playerfeatures_by_match_and_by_team(
             "AWAY": df_playerfeatures_away[df_playerfeatures_away["ID"] == matchID],
         }
     return matchID_to_side_to_playerfeatures
+
+
+def get_statistical_playerfeatures(
+    df_playerfeatures_home: pd.DataFrame,
+    df_playerfeatures_away: pd.DataFrame,
+    statistical_features_config: dict,
+) -> pd.DataFrame:
+    """Get the statistical features from player features.
+
+    Args:
+        df_playerfeatures_home (pd.DataFrame): the dataframe of player features for the home team
+        df_playerfeatures_away (pd.DataFrame): the dataframe of player features for the away team
+        statistical_features_config (dict): the config for the statistical features
+    
+    Returns:
+        pd.DataFrame: the dataframe with the statistical features added
+    """
+    list_df_stat_playerfeatures: List[pd.DataFrame] = []
+    df_playerfeatures_home_copy = df_playerfeatures_home.copy()
+    df_playerfeatures_away_copy = df_playerfeatures_away.copy()
+
+    # Try dropping the columns that are not used
+    columns = [
+        "LEAGUE",
+        "TEAM_NAME",
+        "POSITION",
+        "PLAYER_NAME",
+    ]
+    df_playerfeatures_home_filtered = df_playerfeatures_home_copy.drop(
+        columns=columns, errors="ignore"
+    )
+    df_playerfeatures_away_filtered = df_playerfeatures_away_copy.drop(
+        columns=columns, errors="ignore"
+    )
+    # df_playerfeatures_home_grouped = df_playerfeatures_home_filtered.groupby("ID")
+    # df_playerfeatures_away_grouped = df_playerfeatures_away_filtered.groupby("ID")
+
+    # Different handling of positions and home/away features
+    for homeaway in statistical_features_config["homeaway"]:
+        for position in statistical_features_config["position"]:
+            if homeaway == "mixed":
+                df_playerfeatures_mixed = pd.concat(
+                    [df_playerfeatures_home_filtered, df_playerfeatures_away_filtered]
+                )
+                
+                if position == "mixed":
+                    importance_player_factors = load_importance_factors(
+                        homeaway="mixed",
+                    )
+                    list_df_stat_playerfeatures.append(statistical_features_computations(
+                        df_playerfeatures_mixed,
+                        importance_player_factors,
+                    ))
+
+                elif position == "separated":
+                    raise ValueError("Not implemented yet")
+                
+                else:
+                    raise ValueError(f"Unknown position {position}")
+                
+            elif homeaway == "separated":
+                if position == "mixed":
+                    importance_player_home_factors = load_importance_factors(
+                        homeaway="home",
+                    )
+                    importance_player_away_factors = load_importance_factors(
+                        homeaway="away",
+                    )
+                    list_df_stat_playerfeatures.append(statistical_features_computations(
+                        df_playerfeatures_home_filtered,
+                        importance_player_home_factors,
+                    ))
+                    list_df_stat_playerfeatures.append(statistical_features_computations(
+                        df_playerfeatures_away_filtered,
+                        importance_player_away_factors,
+                    ))
+
+                elif position == "separated":
+                    raise ValueError("Not implemented yet")
+                
+                else:
+                    raise ValueError(f"Unknown position {position}")
+                
+            else:
+                raise ValueError(f"Unknown homeaway {homeaway}")
+    
+    df_combined = pd.concat(list_df_stat_playerfeatures, axis=1)
+    df_combined.columns = [f'col{i}' for i in range(1, len(df_combined.columns)+1)]
+
+    df_expanded = pd.DataFrame(df_combined.apply(lambda row: sum(row.tolist(), []), axis=1).tolist(), index=df_combined.index)
+    column_names = [f'stat_player_feature_{i}' for i in range(df_expanded.shape[1])]
+    df_expanded.columns = column_names
+
+    # !! Actuellement on mélange les joueurs, c'est vraiment pas idéal...
+
+    return df_expanded
+
+def statistical_features_computations(
+    df_playerfeatures: pd.DataFrame,
+    important_player_factors: pd.DataFrame,
+) -> pd.DataFrame:
+    """Compute the statistical features from the player features.
+    
+    Args:
+        df_playerfeatures (pd.DataFrame): the dataframe of player features, grouped by team (ID)
+        important_player_factors (pd.DataFrame): the dataframe of statistical relevance of player features
+    
+    Returns:
+        pd.DataFrame: the dataframe with the statistical features added
+    """
+    # Filter df_playerfeatures to keep only the columns in important_player_factors
+    common_columns = df_playerfeatures.columns.intersection(important_player_factors.columns)
+    df_filtered = df_playerfeatures[common_columns]
+
+    # Multiply by weights
+    df_weighted = df_filtered * important_player_factors[common_columns].to_numpy()[1]
+
+    # Sum the result along axis=1 for each row
+    df_summed = df_weighted.sum(axis=1)
+
+    # Put again the ID column and group by ID
+    df_summed = pd.concat([df_playerfeatures["ID"], df_summed], axis=1)
+
+    return df_summed.groupby("ID")[0].apply(list)
+    

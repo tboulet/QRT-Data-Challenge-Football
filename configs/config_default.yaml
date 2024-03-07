@@ -130,6 +130,23 @@ aggregator_config :
     - mean
     # - min
 
+# ---------- Statistical features ----------
+statistical_features_config :
+  # The number of components from TGCCA to use. Currently, only 1 is supported.
+  ncomp: 1
+
+  # The way to compute the linear combinations:
+  # separated : use separated home and away 
+  # mixed : use mixed home and away
+  homeaway: 
+    - separated
+    # - mixed
+
+  # The handing of players positions: no difference (mixed) or separated (separated)
+  position:
+    - mixed
+    # - separated
+
 # Defaults sub-configs and other Hydra config.
 defaults:
   - _self_

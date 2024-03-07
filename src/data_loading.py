@@ -275,3 +275,18 @@ def load_index_numpy_labels_team_identifier(
         "[Shapes] Loaded labels_team_identifier shape: ", labels_team_identifier.shape
     )
     return labels_team_identifier
+
+def load_importance_factors(
+    homeaway: str,
+    global_data_path = "data/",
+) -> pd.DataFrame:
+    """Load the importance factors from the dataset
+
+    Args:
+        global_data_path (str): the path where all CSVs are.
+    """
+    importance_factors = pd.read_csv(
+        global_data_path + f"important_player_factors_{homeaway}.csv",
+    ).transpose()
+    importance_factors.columns = importance_factors.iloc[0]
+    return importance_factors

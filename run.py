@@ -40,6 +40,7 @@ from src.feature_engineering import (
     drop_features,
     impute_missing_values,
     group_playerfeatures_by_match_and_by_team,
+    get_statistical_playerfeatures,
 )
 from src.data_management import (
     add_prefix_to_columns,
@@ -58,6 +59,7 @@ def create_features(
     teamfeatures_config: Dict[str, dict],
     playerfeatures_config: Dict[str, dict],
     aggregator_config: Dict[str, dict],
+    statistical_features_config: Dict[str, dict],
     data_path: str,
 ) -> pd.DataFrame:
     """Create the features from the config. It does the following :
@@ -171,6 +173,17 @@ def create_features(
         )
         add_prefix_to_columns(df_agg_playerfeatures_away, "AWAY_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
+    
+    with RuntimeMeter("statistical features") as rm:
+        print("\nStatistical playerfeatures...")
+
+        # Group the playerfeatures by match and by team
+        df_grouped_playerfeatures = get_statistical_playerfeatures(
+            df_playerfeatures_home=df_playerfeatures_home,
+            df_playerfeatures_away=df_playerfeatures_away,
+            statistical_features_config=statistical_features_config,
+        )
+        list_df_agg_playerfeatures.append(df_grouped_playerfeatures)
 
     # Merge and clean the teamfeatures and the aggregated playerfeatures
     with RuntimeMeter("merging") as rm:
@@ -239,6 +252,7 @@ def main(config: DictConfig):
         teamfeatures_config=config["teamfeatures_config"],
         playerfeatures_config=config["playerfeatures_config"],
         aggregator_config=config["aggregator_config"],
+        statistical_features_config=config["statistical_features_config"],
         data_path="data_train",
     )
     if do_test_pred:
