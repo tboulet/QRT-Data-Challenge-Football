@@ -178,6 +178,27 @@ plot(fit_tgcca$factors[[4]][[2]][,1])
 plot(fit_tgcca$factors[[2]][[1]][,1])
 plot(fit_tgcca$factors[[2]][[2]][,1])
 
+important_player_factors_home <- fit_tgcca$factors[[2]][[1]][,1]
+important_player_factors_away <- fit_tgcca$factors[[4]][[1]][,1]
+
+names(important_player_factors_away) = colnames(player_away[,-c(1)])
+names(important_player_factors_home) = colnames(player_home[,-c(1)])
+
+print(important_player_factors_away[which(abs(important_player_factors_away) > 0.18)])
+print(important_player_factors_home[which(abs(important_player_factors_home) > 0.18)])
+print(important_player_factors_away)
+print(important_player_factors_home)
+```
+
+
+Store the important factors for the players
+```{r}
+write.csv(important_player_factors_away, "../data/important_player_factors_away.csv")
+write.csv(important_player_factors_home, "../data/important_player_factors_home.csv")
+```
+
+
+```{r}
 plot(fit_tgcca$factors[[4]][[1]][,1], fit_tgcca$factors[[2]][[1]][,1], xlab = "Away team", ylab = "Home team")
 text(fit_tgcca$factors[[4]][[1]][,1], fit_tgcca$factors[[2]][[1]][,1], labels = colnames(player_away[,-c(1)]), cex = 0.5)
 plot(fit_tgcca$factors[[4]][[2]][,1], fit_tgcca$factors[[2]][[2]][1:23,1], xlab = "Away team", ylab = "Home team")
@@ -197,6 +218,58 @@ rownames(player_away[,-c(1)])[which(abs(fit_tgcca$factors[[4]][[2]][,1]) > 0.15)
 # Attempt with only the players blocks
 # TGCCA for feature engineering
 Our aim is to use RGCCA with 4 blocs (teams features and players features, for both home and away teams) to predict the Y variable, in a "bow tie" structure. 
+```{r}
+# Remove the first 3 columns from the team tensors
+# team_home_cut <- as.matrix(team_home[,-c(1:3)])
+# team_away_cut <- as.matrix(team_away[,-c(1:3)])
+
+# concatenate player blocks along the players dimension
+players_block <- abind(player_home_tensor, player_away_tensor, along=3)
+L_concat = list(team_home_cut, team_away_cut, players_block, Y)
+```
+
+```{r}
+fit_tgcca_trunc <- rgcca(
+    blocks = L_concat, 
+    connection = C, 
+    method = "tgcca", 
+    rank = 1,
+    tau = 1, 
+    scale = FALSE, 
+    scale_block = TRUE,
+    verbose = TRUE, 
+    ncomp = 2,
+    init = "random", 
+    tol = 1e-8,
+    response = 4
+  )
+```
+
+```{r}
+plot(fit_tgcca_trunc, type= "sample", comp = 1:2, block = 1, title = "Factorial plan of TGCCA", resp = Y)
+plot(fit_tgcca_trunc, type= "sample", comp = 1:2, block = 2, title = "Factorial plan of TGCCA", resp = Y)
+plot(fit_tgcca_trunc, type= "sample", comp = 1:2, block = 3, title = "Factorial plan of TGCCA", resp = Y)
+```
+
+```{r}
+plot(fit_tgcca_trunc, type='cor_circle', comp=1:2, block = 1:3)
+plot(fit_tgcca_trunc, display_order = TRUE, comp=1, block = 1:3)
+plot(fit_tgcca_trunc$factors[[3]][[1]][,1])
+plot(fit_tgcca_trunc$factors[[3]][[2]][,1])
+
+```
+
+```{r}
+important_player_factors_mixed <- fit_tgcca_trunc$factors[[3]][[1]][,1]
+names(important_player_factors_mixed) = colnames(player_home[,-c(1)])
+print(important_player_factors_mixed[which(abs(important_player_factors_mixed) > 0.18)])
+```
+
+```{r}
+write.csv(important_player_factors_mixed, "../data/important_player_factors_mixed.csv")
+```
+
+# Attempt with concatenated players blocks
 ```{r}
 # Remove the first 3 columns from the team tensors
 team_home_cut <- as.matrix(team_home[,-c(1:3)])
@@ -225,13 +298,12 @@ fit_tgcca_trunc <- rgcca(
   )
 ```
 
+
 ```{r}
-plot(fit_tgcca_trunc, type= "sample", comp = 1:2, block = 2, title = "Factorial plan of TGCCA", resp = Y)
 plot(fit_tgcca_trunc, type='cor_circle', comp=1:2, block = 1)
 plot(fit_tgcca_trunc, display_order = FALSE, comp=1)
 plot(fit_tgcca_trunc$factors[[2]][[2]][,1])
 ```
-
 
 
 # Attempt with classic RGCCA
