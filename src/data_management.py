@@ -1,5 +1,6 @@
 # Logging
 from collections import defaultdict
+import os
 import random
 import pandas as pd
 from sklearn.metrics import accuracy_score, mean_squared_error
@@ -22,10 +23,11 @@ import numpy as np
 from sklearn.utils import shuffle
 
 
-def cut_data_to_n_data_max(dataframe: pd.DataFrame, n_data_max: int) -> None:
+def cut_data_to_n_data_max(dataframe: pd.DataFrame, n_data_max: int) -> pd.DataFrame:
     """Cut the data to a maximum number of samples."""
     if n_data_max is not None:
         dataframe = dataframe[:n_data_max]
+        print(f"Data cut to {n_data_max} samples.")
     return dataframe
 
 
@@ -64,12 +66,12 @@ def save_predictions(
     )
     df.index.name = "ID"
     df.to_csv(path)
-    print(f"Predictions saved to {path}")
 
 
 def save_team_identifier_predictions(
     list_labels_team_identifier_preds_test : List[np.ndarray],
     path: str,
+    idx_start: int,
 ) -> None:
     """Save the team identifier predictions to a CSV file.
     list_labels_team_identifier_preds_test is a list of team_identifier_preds_test, which is a
@@ -95,15 +97,31 @@ def save_team_identifier_predictions(
             "Identifier_home_pred": team_identifier_pred_test_home,
             "Identifier_away_pred": team_identifier_pred_test_away,
         },
-        index=range(12303, 12303 + n_matches, 1),
+        index=range(idx_start, idx_start + n_matches, 1),
     )
     print("df : ", df, "df shape : ", df.shape)
     df.index.name = "match_id"
     df.to_csv(path)
     print(f"Predictions saved to {path}")
     
-    
-    
+
+def insert_col_in_csv(
+    path : str,
+    values : np.ndarray,
+    col_name : str,
+) -> None:
+    """Insert a column in a CSV file.
+
+    Args:
+        path (str): the path to the CSV file
+        values (np.ndarray): the values to insert in the column
+        col_name (str): the name of the column
+    """
+    df = pd.read_csv(path)
+    df[col_name] = values
+    df.to_csv(path, index=False)
+    print(f"Column {col_name} inserted in {path}")
+
 def add_prefix_to_columns(
     dataframe: pd.DataFrame,
     prefix: str,

@@ -21,6 +21,7 @@ import cProfile
 import numpy as np
 from src.constants import SPECIFIC_PLAYERFEATURES, SPECIFIC_TEAMFEATURES
 from src.data_analysis import get_metrics_names_to_fn_names
+from src.data_loading import load_dataframe_labels
 from src.time_measure import RuntimeMeter
 from src.utils import get_name_trainer_and_features, try_get, try_get_seed
 from sklearn.utils import shuffle
@@ -170,7 +171,10 @@ def add_non_null_indicator_features(
             if verbose >= 2:
                 print(f"\t\tAdding features is_not_null for metric {metric}")
             # Adding the metric is not null feature if features_config["add_non_null_indicator_metric"]. Don't add if features_config["add_non_null_indicator_feature"] and there is only one aggregate function for the metric
-            if features_config["add_non_null_indicator_metric"] and (len(fn_names) > 1 or not features_config["add_non_null_indicator_feature"]):
+            if features_config["add_non_null_indicator_metric"] and (
+                len(fn_names) > 1
+                or not features_config["add_non_null_indicator_feature"]
+            ):
                 df_features[metric + "_is_not_null"] = (
                     df_features[[f"{metric}_{fn_name}" for fn_name in fn_names]]
                     .notnull()
@@ -307,77 +311,87 @@ def add_team_couple_info(
 
     if features_config["add_team_winrate"]:
 
-        if data_path == "data_train":
-            # Add team identifier from the team_mapping.csv file (name to identifier)
-            df_features = df_features.merge(
-                team_mapping_df,
-                how="left",
-                left_on="HOME_TEAM_NAME",
-                right_on="Team_Name",
-            ).rename(columns={"Identifier": "identifier_HOME_ID"})
-            df_features = df_features.merge(
-                team_mapping_df,
-                how="left",
-                left_on="AWAY_TEAM_NAME",
-                right_on="Team_Name",
-            ).rename(columns={"Identifier": "identifier_AWAY_ID"})
-
-        elif data_path == "data_test":
-            # Add team identifier from the team_identifier_predictions.csv file (match ID to the two team identifiers)
-            predictions_df = pd.read_csv("data/team_identifier_predictions.csv")
-
-            df_merged = pd.merge(
-                df_features,
-                predictions_df,
-                left_on="ID",
-                right_on="match_id",
-                how="left",
-            )
-            df_merged.rename(
-                columns={
-                    "Identifier_home_pred": "identifier_HOME_ID",
-                    "Identifier_away_pred": "identifier_AWAY_ID",
-                },
-                inplace=True,
-            )
-            df_merged.drop(columns=["match_id"], inplace=True)
-            df_features = df_merged
-        
-        # Merge with win rates dataframe to add win rates for home teams
+        # Add team identifier from the team_mapping.csv file (name to identifier)
         df_features = df_features.merge(
-            win_rates_df[["HOME_TEAM_ID", "AWAY_TEAM_ID", "HOME_WINS_RATE"]],
+            team_mapping_df,
+            how="left",
+            left_on="HOME_TEAM_NAME",
+            right_on="Team_Name",
+        ).rename(columns={"Identifier": "identifier_HOME_ID"})
+        df_features = df_features.merge(
+            team_mapping_df,
+            how="left",
+            left_on="AWAY_TEAM_NAME",
+            right_on="Team_Name",
+        ).rename(columns={"Identifier": "identifier_AWAY_ID"})
+
+        # Merge with win rates dataframe to add win rates for home teams HOME_WINS_RATE
+        df_features = df_features.merge(
+            win_rates_df[
+                [
+                    "HOME_TEAM_ID",
+                    "AWAY_TEAM_ID",
+                    "HOME_WINS",
+                    "DRAW",
+                    "AWAY_WINS",
+                    "TOTAL_MATCHES",
+                ]
+            ],
             how="left",
             left_on=["identifier_HOME_ID", "identifier_AWAY_ID"],
             right_on=["HOME_TEAM_ID", "AWAY_TEAM_ID"],
         )
+        # Drop the columns from the merge
+        df_features.drop(
+            columns=[
+                "identifier_HOME_ID",
+                "identifier_AWAY_ID",
+                "Team_Name_x",
+                "Team_Name_y",
+                "HOME_TEAM_ID",
+                "AWAY_TEAM_ID",
+            ],
+            inplace=True,
+        )
 
-        # Rename and select columns
-        df_features["WINRATE_HOME"] = df_features["HOME_WINS_RATE"]
-        if data_path == "data_train":
+        # Unbiased version for train data :
+        if data_path == "data_train" and features_config["balance_train_stats"]:
+            # Adapt the winrates for unbiasedness using the labels
+            df_labels = load_dataframe_labels(global_data_path="data_train")
+            df_labels.columns = [
+                "ID",
+                "HOME_HAS_WINS",
+                "DRAW_HAS_OCCURED",
+                "AWAY_HAS_WINS",
+            ]
+            df_features = pd.merge(df_features, df_labels, on="ID", how="left")
+            df_features["HOME_WINS"] -= df_features["HOME_HAS_WINS"]
+            df_features["DRAW"] -= df_features["DRAW_HAS_OCCURED"]
+            df_features["AWAY_WINS"] -= df_features["AWAY_HAS_WINS"]
+            df_features["TOTAL_MATCHES"] -= 1
             df_features.drop(
-                columns=[
-                    "identifier_HOME_ID",
-                    "identifier_AWAY_ID",
-                    "Team_Name_x",
-                    "Team_Name_y",
-                    "HOME_TEAM_ID",
-                    "AWAY_TEAM_ID",
-                    "HOME_WINS_RATE",
-                ],
+                columns=["HOME_HAS_WINS", "AWAY_HAS_WINS", "DRAW_HAS_OCCURED"],
                 inplace=True,
             )
-        elif data_path == "data_test":
-            df_features.drop(
-                columns=[
-                    "identifier_HOME_ID",
-                    "identifier_AWAY_ID",
-                    "HOME_TEAM_ID",
-                    "AWAY_TEAM_ID",
-                    "HOME_WINS_RATE",
-                ],
-                inplace=True,
-            )
 
+        df_features["HOME_WINS_RATE"] = (
+            df_features["HOME_WINS"] / df_features["TOTAL_MATCHES"]
+        )
+        df_features["DRAW_RATE"] = df_features["DRAW"] / df_features["TOTAL_MATCHES"]
+        df_features["AWAY_WINS_RATE"] = (
+            df_features["AWAY_WINS"] / df_features["TOTAL_MATCHES"]
+        )
+
+        # Eventually drop the columns that are not used
+        df_features.drop(columns=["HOME_WINS", "DRAW", "AWAY_WINS"], inplace=True)
+
+        # Print values that are inf or NaN
+        print(
+            f"\t\tNumber of NaN values for win rates: {df_features['HOME_WINS_RATE'].isna().sum()} out of {len(df_features)}"
+        )
+        print(
+            f"\t\tNumber of inf values for win rates: {np.isinf(df_features['HOME_WINS_RATE']).sum()} out of {len(df_features)}"
+        )
     return df_features
 
 

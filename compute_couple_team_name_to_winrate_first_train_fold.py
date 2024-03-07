@@ -8,6 +8,10 @@ team_mapping_df = pd.read_csv('data/team_mapping.csv')
 df_teamfeatures_train = load_teamfeatures({}, "data_train")
 df_labels = load_dataframe_labels("data_train")
 
+# Only use last 90% of the data. This means the first fold (10% val and 90% val) will be perfectly evaluated.
+n_data_matches = df_teamfeatures_train.shape[0]
+df_teamfeatures_train = df_teamfeatures_train.iloc[int(n_data_matches * 0.1) :]
+df_labels = df_labels.iloc[int(n_data_matches * 0.1) :]
 
 
 # Merge with team mapping dataframe to get identifiers
@@ -59,12 +63,7 @@ for key, value in win_rates.items():
         win_rates[key][result + '_RATE'] = value[result] / total_matches if total_matches != 0 else 0
 
 # Convert dictionary to dataframe
-win_rates_df = (
-    pd.DataFrame(win_rates)
-    .T.reset_index()
-    .rename(columns={"level_0": "HOME_TEAM_ID", "level_1": "AWAY_TEAM_ID"})
-    .astype({"HOME_TEAM_ID": int, "AWAY_TEAM_ID": int})
-)
+win_rates_df = pd.DataFrame(win_rates).T.reset_index().rename(columns={'level_0': 'HOME_TEAM_ID', 'level_1': 'AWAY_TEAM_ID'}).astype({'HOME_TEAM_ID': int, 'AWAY_TEAM_ID': int})
 
 # Save to CSV
 win_rates_df.to_csv('data/win_rates.csv', index=False)

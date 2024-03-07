@@ -1,5 +1,6 @@
 # Logging
 from collections import defaultdict
+import os
 import wandb
 from tensorboardX import SummaryWriter
 
@@ -49,7 +50,6 @@ from src.data_management import (
 )
 from src.utils import (
     get_name_trainer_and_features,
-    to_numeric,
     try_get_seed,
 )
 
@@ -101,6 +101,9 @@ def create_features(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
         )
+        # Convert inf to NaN
+        df_teamfeatures.replace([np.inf, -np.inf], np.nan, inplace=True)
+        
         # Impute missing values
         df_teamfeatures = impute_missing_values(
             df_features=df_teamfeatures,
@@ -140,13 +143,6 @@ def create_features(
             dfs.append(df_playerfeature_side)
 
         df_playerfeatures_home, df_playerfeatures_away = dfs
-
-        # # Group playerfeatures by match and by team
-        # print("Grouping playerfeatures by match and by team...")
-        # matchID_to_side_to_playerfeatures = group_playerfeatures_by_match_and_by_team(
-        #     df_playerfeatures_home=df_playerfeatures_home,
-        #     df_playerfeatures_away=df_playerfeatures_away,
-        # )
 
         # Concatenate the playerfeatures
         print("\tConcatenating playerfeatures...")
@@ -294,13 +290,17 @@ def main(config: DictConfig):
             accuracy_train = accuracy_score(labels_train, preds_train)
             metric_results["accuracy_train"] = accuracy_train
             print(f"Accuracy train: {accuracy_train}")
-
+            os.makedirs("data/predictions_train", exist_ok=True)
+            save_predictions([preds_train], path=f"data/predictions_train/fold{k}.csv")
+            
             # Cross validation metrics
             if K >= 2:
                 preds_val = trainer.predict(dataframe=df_val)
                 accuracy_val = accuracy_score(labels_val, preds_val)
                 metric_results["accuracy_val"] = accuracy_val
                 print(f"Accuracy val: {accuracy_val}")
+                os.makedirs("data/predictions_val", exist_ok=True)
+                save_predictions([preds_val], path=f"data/predictions_val/fold{k}.csv")
 
             # Test metrics
             if do_test_pred:
@@ -323,6 +323,7 @@ def main(config: DictConfig):
 
     if do_test_pred:
         save_predictions(list_label_preds_test, path="predictions.csv")
+        print(f"Predictions saved to 'predictions.csv'")
 
     # Conclude
     print()
