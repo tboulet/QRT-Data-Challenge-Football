@@ -53,6 +53,9 @@ teamfeatures_config :
   add_team_name_identifier : False
   add_team_name_indicator : False
   add_team_winrate : True
+  # The elo feature
+  add_global_winrate : True
+  add_elo : True
   # Whether to balance statistics.
   balance_train_stats : True
 
@@ -132,6 +135,10 @@ aggregator_config :
 
 # ---------- Statistical features ----------
 statistical_features_config :
+
+  # Whether to add those features
+  add_statistical_features : True
+
   # The number of components from TGCCA to use. Currently, only 1 is supported.
   ncomp: 1
 

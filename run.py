@@ -34,6 +34,7 @@ from src.data_loading import (
     load_teamfeatures,
 )
 from src.feature_engineering import (
+    add_elo_features,
     add_team_couple_info,
     add_non_null_indicator_features,
     get_agg_playerfeatures_by_operation,
@@ -100,6 +101,11 @@ def create_features(
         )
         # Add non-null indicator features
         df_teamfeatures = add_non_null_indicator_features(
+            df_features=df_teamfeatures,
+            features_config=teamfeatures_config,
+        )
+        # Add elo features
+        df_teamfeatures = add_elo_features(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
         )
@@ -175,15 +181,16 @@ def create_features(
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
     
     with RuntimeMeter("statistical features") as rm:
-        print("\nStatistical playerfeatures...")
+        if statistical_features_config["add_statistical_features"]:
+            print("\nStatistical playerfeatures...")
 
-        # Group the playerfeatures by match and by team
-        df_grouped_playerfeatures = get_statistical_playerfeatures(
-            df_playerfeatures_home=df_playerfeatures_home,
-            df_playerfeatures_away=df_playerfeatures_away,
-            statistical_features_config=statistical_features_config,
-        )
-        list_df_agg_playerfeatures.append(df_grouped_playerfeatures)
+            # Group the playerfeatures by match and by team
+            df_grouped_playerfeatures = get_statistical_playerfeatures(
+                df_playerfeatures_home=df_playerfeatures_home,
+                df_playerfeatures_away=df_playerfeatures_away,
+                statistical_features_config=statistical_features_config,
+            )
+            list_df_agg_playerfeatures.append(df_grouped_playerfeatures)
 
     # Merge and clean the teamfeatures and the aggregated playerfeatures
     with RuntimeMeter("merging") as rm:
@@ -260,6 +267,7 @@ def main(config: DictConfig):
             teamfeatures_config=config["teamfeatures_config"],
             playerfeatures_config=config["playerfeatures_config"],
             aggregator_config=config["aggregator_config"],
+            statistical_features_config=config["statistical_features_config"],
             data_path="data_test",
         )
 
