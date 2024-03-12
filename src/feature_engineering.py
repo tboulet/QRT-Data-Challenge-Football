@@ -584,21 +584,19 @@ def get_statistical_playerfeatures(
     df_playerfeatures_home_copy = df_playerfeatures_home.copy()
     df_playerfeatures_away_copy = df_playerfeatures_away.copy()
 
-    # Try dropping the columns that are not used
+    # Drop the columns that are not used
     columns = [
         "LEAGUE",
         "TEAM_NAME",
         "POSITION",
         "PLAYER_NAME",
     ]
-    df_playerfeatures_home_filtered = df_playerfeatures_home_copy.drop(
-        columns=columns, errors="ignore"
-    )
-    df_playerfeatures_away_filtered = df_playerfeatures_away_copy.drop(
-        columns=columns, errors="ignore"
-    )
-    # df_playerfeatures_home_grouped = df_playerfeatures_home_filtered.groupby("ID")
-    # df_playerfeatures_away_grouped = df_playerfeatures_away_filtered.groupby("ID")
+    df_playerfeatures_home_filtered = df_playerfeatures_home_copy.drop(columns=columns, errors="ignore")
+    df_playerfeatures_away_filtered = df_playerfeatures_away_copy.drop(columns=columns, errors="ignore")
+
+    # Pad or trim the groups to a constant number of players
+    df_playerfeatures_home_filtered = df_playerfeatures_home_filtered.groupby('ID', group_keys=False).apply(pad__or_trim_group_to_N_rows)
+    df_playerfeatures_away_filtered = df_playerfeatures_away_filtered.groupby('ID', group_keys=False).apply(pad__or_trim_group_to_N_rows)
 
     # Different handling of positions and home/away features
     for homeaway in statistical_features_config["homeaway"]:
@@ -699,3 +697,31 @@ def statistical_features_computations(
     df_summed = pd.concat([df_playerfeatures["ID"], df_summed], axis=1)
 
     return df_summed.groupby("ID")[0].apply(list)
+
+
+def pad__or_trim_group_to_N_rows(df, N=20, pad_value=0):
+    """
+    Ensures each group in the DataFrame has N rows, padding with `pad_value` if necessary.
+    
+    Args:
+    - df: DataFrame grouped by 'ID'.
+    - pad_value: Value used for padding missing rows. Defaults to np.nan.
+    
+    Returns:
+    - DataFrame with each group padded to N rows.
+    """
+    target_rows = N
+    current_len = len(df)
+    
+    if current_len < target_rows:
+        # Pad groups with fewer than N entries
+        n_rows_needed = target_rows - current_len
+        padding_df = pd.DataFrame(index=range(n_rows_needed), columns=df.columns)
+        padding_df.fillna(pad_value, inplace=True)
+        padding_df['ID'] = df.name  # Assumes 'ID' is the groupby object's name and present in df
+        df = pd.concat([df, padding_df])
+    elif current_len > target_rows:
+        # Trim groups with more than N entries
+        df = df.iloc[:target_rows]
+    
+    return df
