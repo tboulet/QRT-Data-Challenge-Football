@@ -70,11 +70,30 @@ team_home <- team_home %>% select(-c(ends_with("season_average"), ends_with("5_l
 team_away <- team_away %>% select(-c(ends_with("season_average"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
 
 # Filter features that start with PLAYER_CAPTAIN, PLAYER_LONG_BALLS, PLAYER_LONG_BALLS_WON, PLAYER_SHOTS_OFF_TARGET
-player_home <- player_home %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET")))
-player_away <- player_away %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET")))
+player_home <- player_home %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET"), starts_with("PLAYER_PUNCHES")))
+player_away <- player_away %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET"), starts_with("PLAYER_PUNCHES")))
 
 player_home_raw <- player_home
 player_away_raw <- player_away
+```
+
+# Load test data
+```{r}
+# load home and away team statistics
+team_home_test <- read_csv("../datas_final/test_home_team_statistics_df.csv")
+team_away_test <- read_csv("../datas_final/test_away_team_statistics_df.csv")
+player_home_test <- read_csv("../datas_final/test_home_player_statistics_df.csv")
+player_away_test <- read_csv("../datas_final/test_away_player_statistics_df.csv")
+
+# Filter features that end with season_average, 5_last_match_sum, 5_last_match_average, 5_last_match_std
+team_home_test <- team_home_test %>% select(-c(ends_with("season_average"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
+team_away_test <- team_away_test %>% select(-c(ends_with("season_average"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
+player_home_test <- player_home_test %>% select(-c(ends_with("season_average"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
+player_away_test <- player_away_test %>% select(-c(ends_with("season_average"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
+
+# Filter features that start with PLAYER_CAPTAIN, PLAYER_LONG_BALLS, PLAYER_LONG_BALLS_WON, PLAYER_SHOTS_OFF_TARGET
+player_home_test <- player_home_test %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET"), starts_with("PLAYER_PUNCHES")))
+player_away_test <- player_away_test %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET"), starts_with("PLAYER_PUNCHES")))
 ```
 
 # Structuring 2nd order tensors for players
@@ -122,7 +141,7 @@ createTensor <- function(dataframe) {
 
 
 ```{r}
-position_filter = "goalkeeper" # attacker, defender, midfielder, goalkeeper
+position_filter = "" # attacker, defender, midfielder, goalkeeper
 
 # Filter by position, if relevant
 if (position_filter != "") {
@@ -381,9 +400,11 @@ write.csv(important_player_factors_away, paste0("../data/important_player_factor
 write.csv(important_player_factors_home, paste0("../data/important_player_factors_home_", position_filter, ".csv"))
 ```
 
+
+
 # Attempt with classic RGCCA
 ```{r}
-L_rgcca = list(team_home_cut, matrix(player_home_tensor, nrow=nrow(player_home_tensor)), team_away_cut, matrix(player_away_tensor, nrow=nrow(player_away_tensor)), Y)
+L_rgcca = list(TH = team_home_cut, PH = matrix(player_home_tensor, nrow=nrow(player_home_tensor)), TA = team_away_cut, PA = matrix(player_away_tensor, nrow=nrow(player_away_tensor)), Y = Y)
 #L2 = list(abind(L_rgcca[1:4], along=2), L_rgcca[[5]])
 #L_rgcca <- L2
 ```
@@ -405,13 +426,18 @@ fit_rgcca <- rgcca(
   )
 ```
 
-
 ```{r}
 plot(fit_rgcca, type= "sample", comp = 1:2, block = 1, title = "Factorial plan of RGCCA", resp = Y)
 plot(fit_rgcca, type= "sample", comp = 1:2, block = 2, title = "Factorial plan of RGCCA", resp = Y)
 plot(fit_rgcca, type= "sample", comp = 1:2, block = 3, title = "Factorial plan of RGCCA", resp = Y)
 plot(fit_rgcca, type= "sample", comp = 1:2, block = 4, title = "Factorial plan of RGCCA", resp = Y)
 
+```
+
+# Predict on test data
+```{r}
+L_test = list(TH = team_home_test, PH = player_home_test, TA = team_away_test, PA = player_away_test)
+Y_pred = rgcca_predict(fit_rgcca, blocks_test = L_test, prediction_model = "lda")
 ```
 
 ```{r}
@@ -467,3 +493,106 @@ summary(fit_rgcca_perm)
 #summary(cv_out)
 ```
 
+
+
+# Attempt with separate blocks for positions, and RGCCA
+
+```{r}
+position_filter = c("attacker", "defender", "midfielder", "goalkeeper")
+
+# Create a list with all the blocks, with all different positions (including NA separately), for home and away teams 
+player_home_attack <- player_home_raw %>% filter(POSITION == "attacker") %>% select(-c(1))
+player_away_attack <- player_away_raw %>% filter(POSITION == "attacker") %>% select(-c(1))
+player_home_defense <- player_home_raw %>% filter(POSITION == "defender") %>% select(-c(1))
+player_away_defense <- player_away_raw %>% filter(POSITION == "defender") %>% select(-c(1))
+player_home_midfield <- player_home_raw %>% filter(POSITION == "midfielder") %>% select(-c(1))
+player_away_midfield <- player_away_raw %>% filter(POSITION == "midfielder") %>% select(-c(1))
+player_home_goalkeeper <- player_home_raw %>% filter(POSITION == "goalkeeper") %>% select(-c(1))
+player_away_goalkeeper <- player_away_raw %>% filter(POSITION == "goalkeeper") %>% select(-c(1))
+player_away_na <- player_away_raw %>% filter(is.na(POSITION)) %>% select(-c(1))
+player_home_na <- player_home_raw %>% filter(is.na(POSITION)) %>% select(-c(1))
+
+# For all of them, replace NA with 0
+
+# L_rgcca = list(team_home_cut, team_away_cut,
+#                 player_home_attack, player_away_attack,
+#                 player_home_midfield, player_away_midfield,
+#                 player_home_defense, player_away_defense,
+#                 player_home_goalkeeper, player_away_goalkeeper,
+#                 player_home_na, player_away_na, Y)
+L_rgcca = list(team_home_cut, player_home_attack, player_home_midfield, player_home_defense, player_home_goalkeeper, #player_home_na, 
+              team_away_cut, player_away_attack, player_away_midfield, player_away_defense, player_away_goalkeeper, #player_away_na, 
+              Y)
+```
+
+
+
+```{r}
+C = matrix(c(0,1,1,1,1,1,0,0,0,0,0,0,1,
+             1,0,1,0,0,1,0,0,0,0,0,0,1,
+             1,1,0,1,0,1,0,0,0,0,0,0,1,
+             1,0,1,0,1,1,0,0,0,0,0,0,1,
+             1,0,0,1,0,1,0,0,0,0,0,0,1,
+             1,1,1,1,1,0,0,0,0,0,0,0,1,
+             0,0,0,0,0,0,0,1,1,1,1,1,1,
+             0,0,0,0,0,0,1,0,1,0,0,1,1,
+             0,0,0,0,0,0,1,1,0,1,0,1,1,
+             0,0,0,0,0,0,1,0,1,0,1,1,1,
+             0,0,0,0,0,0,1,0,0,1,0,1,1,
+             0,0,0,0,0,0,1,1,1,1,1,0,1,
+             1,1,1,1,1,1,1,1,1,1,1,1,0), nrow = 13, ncol = 13)
+
+C = matrix(c(0,1,1,1,1,0,0,0,0,0,1,
+             1,0,1,0,0,0,0,0,0,0,1,
+             1,1,0,1,0,0,0,0,0,0,1,
+             1,0,1,0,1,0,0,0,0,0,1,
+             1,0,0,1,0,0,0,0,0,0,1,
+             0,0,0,0,0,0,1,1,1,1,1,
+             0,0,0,0,0,1,0,1,0,0,1,
+             0,0,0,0,0,1,1,0,1,0,1,
+             0,0,0,0,0,1,0,1,0,1,1,
+             0,0,0,0,0,1,0,0,1,0,1,
+             1,1,1,1,1,1,1,1,1,1,0), nrow = 11, ncol = 11)
+```
+
+```{r}
+fit_tgcca <- rgcca(
+    blocks = L, 
+    connection = C, 
+    method = "rgcca", 
+    rank = 1,
+    tau = "optimal", 
+    scale = FALSE, 
+    scale_block = TRUE,
+    verbose = TRUE, 
+    ncomp = 2,
+    # init = "random", 
+    tol = 1e-8,
+    response = 13
+  )
+```
+
+```{r}
+plot(fit_tgcca, type= "sample", comp = 1:2, block = 1, title = "Factorial plan of TGCCA", resp = Y)
+plot(fit_tgcca, type= "sample", comp = 1:2, block = 2, title = "Factorial plan of TGCCA", resp = Y)
+plot(fit_tgcca, type= "sample", comp = 1:2, block = 3, title = "Factorial plan of TGCCA", resp = Y)
+plot(fit_tgcca, type= "sample", comp = 1:2, block = 4, title = "Factorial plan of TGCCA", resp = Y)
+```
+
+```{r}
+cv_out = rgcca_cv(L_rgcca,
+                 method = "sgcca",
+                 response = 11,
+                 par_type = "sparsity",
+                 par_length = 10,
+                 ncomp = 1,
+                 prediction_model = "lda",
+                 metric = "Balanced_Accuracy",
+                 k = 5,
+                 n_runs = 2,
+                 n_cores = 6,
+                #  NA_method = "na.ignore"
+)
+summary(cv_out)
+best_sparsity <- list(cv_out$best_params)
+```
