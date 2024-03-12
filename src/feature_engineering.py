@@ -508,6 +508,7 @@ def get_agg_playerfeatures_by_operation(
     df_playerfeatures: pd.DataFrame,
     aggregator_config: dict,
     homeaway: str,
+    n_top_features: int = 4,
     players_positions: List[str] = ["attacker", "defender", "midfielder", "goalkeeper", None]  # Include None for NA
 ) -> pd.DataFrame:
     list_df_agg_playerfeatures: List[pd.DataFrame] = []
@@ -519,7 +520,7 @@ def get_agg_playerfeatures_by_operation(
     important_factors_goalkeeper = load_importance_factors(homeaway=homeaway, position="goalkeeper")
 
     # Filter the columns to keep the top largest absolute values in the first row for each position
-    top = 4
+    top = n_top_features
     important_factors_global = important_factors_global.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
     important_factors_attack = important_factors_attack.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
     important_factors_defense = important_factors_defense.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()

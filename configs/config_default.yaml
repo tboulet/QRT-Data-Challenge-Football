@@ -124,14 +124,16 @@ playerfeatures_config :
   verbose : 1
 
 
+
 # ---------- Aggregator ----------
 aggregator_config :
-  role_grouping:
+  role_grouping: # not used !
     - ALL
     # - ATK
   operations:
     - mean
     # - min
+  n_top_features : 4
 
 # ---------- Statistical features ----------
 statistical_features_config :

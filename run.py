@@ -110,7 +110,7 @@ def create_features(
             features_config=teamfeatures_config,
             data_path=data_path,
         )
-        Convert inf to NaN
+        # Convert inf to NaN
         df_teamfeatures.replace([np.inf, -np.inf], np.nan, inplace=True)
         
         # Impute missing values
@@ -170,6 +170,7 @@ def create_features(
             df_playerfeatures=df_playerfeatures_home,
             aggregator_config=aggregator_config,
             homeaway="home",
+            n_top_features=aggregator_config["n_top_features"],
         )
         add_prefix_to_columns(df_agg_playerfeatures_home, "HOME_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_home)
@@ -179,6 +180,7 @@ def create_features(
             df_playerfeatures=df_playerfeatures_away,
             aggregator_config=aggregator_config,
             homeaway="away",
+            n_top_features=aggregator_config["n_top_features"],
         )
         add_prefix_to_columns(df_agg_playerfeatures_away, "AWAY_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
