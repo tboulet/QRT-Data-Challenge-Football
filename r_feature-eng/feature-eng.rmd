@@ -58,8 +58,10 @@ rownames(team_home) <- team_home$ID_team
 rownames(team_away) <- team_away$ID_team
 
 # Filter features to remove "LEAGUE", "TEAM_NAME", "POSITION", "PLAYER_NAME" 
-player_home <- player_home %>% select(-c(2:5))
-player_away <- player_away %>% select(-c(2:5))
+#player_home <- player_home %>% select(-c(2:5))
+#player_away <- player_away %>% select(-c(2:5))
+player_home <- player_home %>% select(-c(2,3,5))
+player_away <- player_away %>% select(-c(2,3,5))
 
 # Filter features that end with season_average, 5_last_match_sum, 5_last_match_average, 5_last_match_std
 player_home <- player_home %>% select(-c(ends_with("season_average"), ends_with("5_last_match_sum"), ends_with("5_last_match_average"), ends_with("5_last_match_std")))
@@ -71,7 +73,8 @@ team_away <- team_away %>% select(-c(ends_with("season_average"), ends_with("5_l
 player_home <- player_home %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET")))
 player_away <- player_away %>% select(-c(starts_with("PLAYER_CAPTAIN"), starts_with("PLAYER_LONG_BALLS"), starts_with("PLAYER_LONG_BALLS_WON"), starts_with("PLAYER_SHOTS_OFF_TARGET")))
 
-
+player_home_raw <- player_home
+player_away_raw <- player_away
 ```
 
 # Structuring 2nd order tensors for players
@@ -115,6 +118,21 @@ createTensor <- function(dataframe) {
   
   return(tensor)
 }
+```
+
+
+```{r}
+position_filter = "goalkeeper" # attacker, defender, midfielder, goalkeeper
+
+# Filter by position, if relevant
+if (position_filter != "") {
+  player_home <- player_home_raw %>% filter(POSITION == position_filter)
+  player_away <- player_away_raw %>% filter(POSITION == position_filter)
+}
+
+# Remove the position column
+player_home <- player_home %>% select(-c(2))
+player_away <- player_away %>% select(-c(2))
 ```
 
 
@@ -193,8 +211,8 @@ print(important_player_factors_home)
 
 Store the important factors for the players
 ```{r}
-write.csv(important_player_factors_away, "../data/important_player_factors_away.csv")
-write.csv(important_player_factors_home, "../data/important_player_factors_home.csv")
+#write.csv(important_player_factors_away, "../data/important_player_factors_away.csv")
+#write.csv(important_player_factors_home, "../data/important_player_factors_home.csv")
 ```
 
 
@@ -215,9 +233,9 @@ rownames(player_away[,-c(1)])[which(abs(fit_tgcca$factors[[4]][[2]][,1]) > 0.15)
 ```
 
 
-# Attempt with only the players blocks
-# TGCCA for feature engineering
-Our aim is to use RGCCA with 4 blocs (teams features and players features, for both home and away teams) to predict the Y variable, in a "bow tie" structure. 
+
+
+# Attempt with merged players blocks
 ```{r}
 # Remove the first 3 columns from the team tensors
 # team_home_cut <- as.matrix(team_home[,-c(1:3)])
@@ -266,7 +284,7 @@ print(important_player_factors_mixed[which(abs(important_player_factors_mixed) >
 ```
 
 ```{r}
-write.csv(important_player_factors_mixed, "../data/important_player_factors_mixed.csv")
+# write.csv(important_player_factors_mixed, "../data/important_player_factors_mixed.csv")
 ```
 
 # Attempt with concatenated players blocks
@@ -305,6 +323,63 @@ plot(fit_tgcca_trunc, display_order = FALSE, comp=1)
 plot(fit_tgcca_trunc$factors[[2]][[2]][,1])
 ```
 
+
+# Attempt with only players blocks
+```{r}
+# Remove the first 3 columns from the team tensors
+team_home_cut <- as.matrix(team_home[,-c(1:3)])
+team_away_cut <- as.matrix(team_away[,-c(1:3)])
+
+L_trunc = list(player_home_tensor, player_away_tensor, Y)
+C = matrix(c(0,0,1,
+             0,0,1,
+             1,1,0), nrow = 3, ncol = 3)
+```
+
+```{r}
+fit_tgcca_trunc <- rgcca(
+    blocks = L_trunc, 
+    connection = C, 
+    method = "tgcca", 
+    rank = 1,
+    tau = 1, 
+    scale = FALSE, 
+    scale_block = TRUE,
+    verbose = TRUE, 
+    ncomp = 2,
+    init = "random", 
+    tol = 1e-8,
+    response = 3
+  )
+```
+
+```{r}
+plot(fit_tgcca_trunc, type= "sample", comp = 1:2, block = 1, title = "Factorial plan of TGCCA", resp = Y)
+plot(fit_tgcca_trunc, type= "sample", comp = 1:2, block = 2, title = "Factorial plan of TGCCA", resp = Y)
+```
+
+
+```{r}
+plot(fit_tgcca_trunc$factors[[1]][[1]][,1])
+plot(fit_tgcca_trunc$factors[[1]][[2]][,1])
+plot(fit_tgcca_trunc$factors[[2]][[1]][,1])
+plot(fit_tgcca_trunc$factors[[2]][[2]][,1])
+
+important_player_factors_home <- fit_tgcca_trunc$factors[[1]][[1]][,1]
+important_player_factors_away <- fit_tgcca_trunc$factors[[2]][[1]][,1]
+
+names(important_player_factors_away) = colnames(player_away[,-c(1)])
+names(important_player_factors_home) = colnames(player_home[,-c(1)])
+
+print(important_player_factors_away[which(abs(important_player_factors_away) > 0.18)])
+print(important_player_factors_home[which(abs(important_player_factors_home) > 0.18)])
+```
+
+```{r}
+# Save, with name depending on the position_filter
+write.csv(important_player_factors_away, paste0("../data/important_player_factors_away_", position_filter, ".csv"))
+write.csv(important_player_factors_home, paste0("../data/important_player_factors_home_", position_filter, ".csv"))
+```
 
 # Attempt with classic RGCCA
 ```{r}
@@ -376,18 +451,19 @@ summary(fit_rgcca_perm)
 
 
 ```{r}
-cv_out = rgcca_cv(L_rgcca,
-                  method = "rgcca",
-                  response = 5,
-                  par_type = "sparsity",
-                  par_length = 10,
-                  ncomp = 1,
-                  prediction_model = "lda",
-                  metric = "Balanced_Accuracy",
-                  k = 3,
-                  n_runs = 2,
-                  n_cores = 8,
-                  NA_method = "na.ignore"
-)
-summary(cv_out)
+#cv_out = rgcca_cv(L_rgcca,
+#                  method = "rgcca",
+#                  response = 5,
+#                  par_type = "sparsity",
+#                  par_length = 10,
+#                  ncomp = 1,
+#                  prediction_model = "lda",
+#                  metric = "Balanced_Accuracy",
+#                  k = 3,
+#                  n_runs = 2,
+#                  n_cores = 8,
+#                  NA_method = "na.ignore"
+#)
+#summary(cv_out)
 ```
+
