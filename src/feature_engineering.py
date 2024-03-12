@@ -198,12 +198,14 @@ def add_non_null_indicator_features(
 def add_elo_features(
     df_features: pd.DataFrame,
     features_config: dict,
+    data_path: str,
 ) -> pd.DataFrame:
     """Add the elo features to the dataframe.
 
     Args:
         df_features (pd.DataFrame): the dataframe to add the features to
         features_config (dict): the config for the features
+        data_path (str): the path to the data folder
 
     Returns:
         pd.DataFrame: the dataframe with the elo features added
@@ -220,7 +222,7 @@ def add_elo_features(
         raise FileNotFoundError(
             f"The file data/elo.csv is missing. Please run 'python compute_elo.py' to generate it."
         )
-    
+
     # Merge with elo dataframe to add elo for home teams HOME_ELO
     df_features = df_features.merge(
         elo_df,
@@ -228,10 +230,12 @@ def add_elo_features(
         left_on="HOME_TEAM_NAME",
         right_on="Team_Name",
     )
+
     df_features.rename(columns={"global_winrate": "HOME_GLOBAL_WINRATE"}, inplace=True)
     df_features.rename(columns={"elo": "HOME_ELO"}, inplace=True)
+    df_features.rename(columns={"total_matches": "HOME_TOTAL_MATCHES"}, inplace=True)
     df_features.drop(columns=["Team_Name"], inplace=True)
-    
+
     # Merge with elo dataframe to add elo for away teams AWAY_ELO
     df_features = df_features.merge(
         elo_df,
@@ -241,19 +245,61 @@ def add_elo_features(
     )
     df_features.rename(columns={"global_winrate": "AWAY_GLOBAL_WINRATE"}, inplace=True)
     df_features.rename(columns={"elo": "AWAY_ELO"}, inplace=True)
+    df_features.rename(columns={"total_matches": "AWAY_TOTAL_MATCHES"}, inplace=True)
     df_features.drop(columns=["Team_Name"], inplace=True)
-    print(df_features)
+
+    if data_path == "data_train" and features_config["balance_train_stats"]:
+        # Adapt the winrates for unbiasedness using the labels
+        df_labels = load_dataframe_labels(global_data_path="data_train")
+        df_labels.columns = [
+            "ID",
+            "HOME_HAS_WINS",
+            "DRAW_HAS_OCCURED",
+            "AWAY_HAS_WINS",
+        ]
+        df_features = pd.merge(df_features, df_labels, on="ID", how="left")
+
+        df_features["HOME_GLOBAL_WINRATE"] = (
+            df_features["HOME_GLOBAL_WINRATE"] * df_features["HOME_TOTAL_MATCHES"]
+            - df_features["HOME_HAS_WINS"]
+            - 0.5 * df_features["DRAW_HAS_OCCURED"]
+        ) / (df_features["HOME_TOTAL_MATCHES"] - 1)
+
+        df_features["AWAY_GLOBAL_WINRATE"] = (
+            df_features["AWAY_GLOBAL_WINRATE"] * df_features["AWAY_TOTAL_MATCHES"]
+            - df_features["AWAY_HAS_WINS"]
+            - 0.5 * df_features["DRAW_HAS_OCCURED"]
+        ) / (df_features["AWAY_TOTAL_MATCHES"] - 1)
+
+        df_features.drop(
+            columns=[
+                "HOME_HAS_WINS",
+                "AWAY_HAS_WINS",
+                "DRAW_HAS_OCCURED",
+            ],
+            inplace=True,
+        )
+
     # Add elo difference feature
-    df_features["DIFF_GLOBAL_WINRATE"] = df_features["HOME_GLOBAL_WINRATE"] - df_features["AWAY_GLOBAL_WINRATE"]
+    df_features["DIFF_GLOBAL_WINRATE"] = (
+        df_features["HOME_GLOBAL_WINRATE"] - df_features["AWAY_GLOBAL_WINRATE"]
+    )
     df_features["DIFF_ELO"] = df_features["HOME_ELO"] - df_features["AWAY_ELO"]
-    
-    # # Drop columns if specified in config
-    # if not features_config["add_global_winrate"]:
-    #     df_features.drop(columns=["HOME_GLOBAL_WINRATE", "AWAY_GLOBAL_WINRATE", "DIFF_GLOBAL_WINRATE"], inplace=True)
-    # if not features_config["add_elo"]:
-    #     df_features.drop(columns=["HOME_ELO", "AWAY_ELO", "DIFF_ELO"], inplace=True)
-        
-    
+
+    # Drop columns if specified in config
+    if not features_config["add_global_winrate"]:
+        df_features.drop(
+            columns=[
+                "HOME_GLOBAL_WINRATE",
+                "AWAY_GLOBAL_WINRATE",
+                "DIFF_GLOBAL_WINRATE",
+            ],
+            inplace=True,
+        )
+    if not features_config["add_elo"]:
+        df_features.drop(columns=["HOME_ELO", "AWAY_ELO", "DIFF_ELO"], inplace=True)
+
+    df_features.drop(columns=["HOME_TOTAL_MATCHES", "AWAY_TOTAL_MATCHES"], inplace=True)
     return df_features
 
 
@@ -530,7 +576,7 @@ def get_statistical_playerfeatures(
         df_playerfeatures_home (pd.DataFrame): the dataframe of player features for the home team
         df_playerfeatures_away (pd.DataFrame): the dataframe of player features for the away team
         statistical_features_config (dict): the config for the statistical features
-    
+
     Returns:
         pd.DataFrame: the dataframe with the statistical features added
     """
