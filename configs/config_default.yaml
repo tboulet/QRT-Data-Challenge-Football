@@ -99,7 +99,7 @@ playerfeatures_config :
   # The aggregation functions we will drop (e.g. season_std)
   fn_agg_to_drop:
     - season_average
-    - season_std
+    # - season_std
     - 5_last_match_sum
     - 5_last_match_average
     - 5_last_match_std

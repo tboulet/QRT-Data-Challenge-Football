@@ -110,7 +110,7 @@ def create_features(
             features_config=teamfeatures_config,
             data_path=data_path,
         )
-        # Convert inf to NaN
+        Convert inf to NaN
         df_teamfeatures.replace([np.inf, -np.inf], np.nan, inplace=True)
         
         # Impute missing values
@@ -169,6 +169,7 @@ def create_features(
         df_agg_playerfeatures_home = get_agg_playerfeatures_by_operation(
             df_playerfeatures=df_playerfeatures_home,
             aggregator_config=aggregator_config,
+            homeaway="home",
         )
         add_prefix_to_columns(df_agg_playerfeatures_home, "HOME_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_home)
@@ -177,10 +178,11 @@ def create_features(
         df_agg_playerfeatures_away = get_agg_playerfeatures_by_operation(
             df_playerfeatures=df_playerfeatures_away,
             aggregator_config=aggregator_config,
+            homeaway="away",
         )
         add_prefix_to_columns(df_agg_playerfeatures_away, "AWAY_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
-    
+
     with RuntimeMeter("statistical features") as rm:
         if statistical_features_config["add_statistical_features"]:
             print("\nStatistical playerfeatures...")
@@ -219,6 +221,7 @@ def create_features(
         )
 
     print(f"[Shapes] Final features shape: {dataframe.shape}")
+    dataframe = dataframe.loc[:,~dataframe.columns.duplicated()].copy()
     return dataframe
 
 

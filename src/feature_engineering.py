@@ -507,36 +507,74 @@ def add_team_couple_info(
 def get_agg_playerfeatures_by_operation(
     df_playerfeatures: pd.DataFrame,
     aggregator_config: dict,
+    homeaway: str,
+    players_positions: List[str] = ["attacker", "defender", "midfielder", "goalkeeper", None]  # Include None for NA
 ) -> pd.DataFrame:
     list_df_agg_playerfeatures: List[pd.DataFrame] = []
-    # Try dropping the columns that are not used
-    columns = [
-        "LEAGUE",
-        "TEAM_NAME",
-        "POSITION",
-        "PLAYER_NAME",
-    ]
-    df_playerfeatures_filtered = df_playerfeatures.drop(
-        columns=columns, errors="ignore"
-    )
-    df_playerfeatures_grouped = df_playerfeatures_filtered.groupby("ID")
+    
+    important_factors_global = load_importance_factors(homeaway=homeaway)
+    important_factors_attack = load_importance_factors(homeaway=homeaway, position="attacker")
+    important_factors_defense = load_importance_factors(homeaway=homeaway, position="defender")
+    important_factors_midfield = load_importance_factors(homeaway=homeaway, position="midfielder")
+    important_factors_goalkeeper = load_importance_factors(homeaway=homeaway, position="goalkeeper")
+
+    # Filter the columns to keep the top largest absolute values in the first row for each position
+    top = 4
+    important_factors_global = important_factors_global.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
+    important_factors_attack = important_factors_attack.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
+    important_factors_defense = important_factors_defense.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
+    important_factors_midfield = important_factors_midfield.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
+    important_factors_goalkeeper = important_factors_goalkeeper.transpose().sort_values("x", key=abs, ascending=False).head(top).transpose().columns.tolist()
+
+    # Union of the lists of features to keep
+    important_factors = important_factors_global + important_factors_attack + important_factors_defense + important_factors_midfield + important_factors_goalkeeper
+    
+    # If selected variables are specified, use only those along with 'ID' and 'POSITION'
+    columns_to_use = important_factors + ["ID", "POSITION"]
+    columns_to_use = [col for col in columns_to_use if col in df_playerfeatures.columns]
+    df_playerfeatures_filtered = df_playerfeatures[columns_to_use]
+    
+    # Handling NA positions: ensuring NA is treated as a separate group
+    df_playerfeatures_filtered['POSITION'] = df_playerfeatures_filtered['POSITION'].fillna('NA')
+    df_playerfeatures_filtered = df_playerfeatures_filtered[df_playerfeatures_filtered['POSITION'].isin(players_positions)]
+    
+    # Group by both 'ID' and 'POSITION'
+    df_playerfeatures_grouped = df_playerfeatures_filtered.groupby(["ID", "POSITION"])
+
     for operation in aggregator_config["operations"]:
         if operation == "mean":
-            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.mean())
+            df_agg = df_playerfeatures_grouped.mean()
         elif operation == "median":
-            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.median())
+            df_agg = df_playerfeatures_grouped.median()
         elif operation == "sum":
-            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.sum())
+            df_agg = df_playerfeatures_grouped.sum()
         elif operation == "max":
-            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.max())
+            df_agg = df_playerfeatures_grouped.max()
         elif operation == "min":
-            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.min())
+            df_agg = df_playerfeatures_grouped.min()
         elif operation == "std":
-            list_df_agg_playerfeatures.append(df_playerfeatures_grouped.std())
+            df_agg = df_playerfeatures_grouped.std()
         else:
             raise ValueError(f"Unknown operation {operation}")
+        
+        # After aggregating and before appending to list_df_agg_playerfeatures
+        df_agg = df_agg.unstack(level='POSITION')
+        df_agg.columns = [f'{col[0]}-{col[1]}-{operation}' for col in df_agg.columns]
 
-    return pd.concat(list_df_agg_playerfeatures, axis=1)
+        list_df_agg_playerfeatures.append(df_agg)
+
+    # Concatenation remains the same
+    df_final_agg = pd.concat(list_df_agg_playerfeatures, axis=1).fillna(0)
+
+    # Filter undesired columns : must contains the important_factors of the right position
+    final_columns = [col for col in df_final_agg.columns if (col.split('-')[0] in important_factors_attack and col.split('-')[1] in ['attacker']) 
+                                 or (col.split('-')[0] in important_factors_defense and col.split('-')[1] in ['defender']) 
+                                 or (col.split('-')[0] in important_factors_midfield and col.split('-')[1] in ['midfielder']) 
+                                 or (col.split('-')[0] in important_factors_goalkeeper and col.split('-')[1] in ['goalkeeper']) 
+                                 or (col.split('-')[1] == 'NA')]
+    df_final_agg = df_final_agg[final_columns]
+    return df_final_agg
+
 
 
 def group_playerfeatures_by_match_and_by_team(

@@ -290,6 +290,7 @@ def load_importance_factors(
     if position == "mixed":
         importance_factors = pd.read_csv(
             global_data_path + f"important_player_factors_{homeaway}.csv",
+            dtype={"player_feature_name": str, "importance": np.float64},
         ).transpose()
         importance_factors.columns = importance_factors.iloc[0]
         return importance_factors
@@ -301,6 +302,7 @@ def load_importance_factors(
     else:
         importance_factors = pd.read_csv(
             global_data_path + f"important_player_factors_{homeaway}_{position}.csv",
+            dtype={"player_feature_name": str, "importance": np.float64},
         ).transpose()
         importance_factors.columns = importance_factors.iloc[0]
         return importance_factors
