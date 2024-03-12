@@ -4,10 +4,11 @@ from src.data_loading import load_dataframe_labels, load_dataframe_teamfeatures
 df_teamfeatures_train = load_dataframe_teamfeatures("train")
 df_labels = load_dataframe_labels("data_train")
 
-# Only use last 90% of the data. This means the first fold (10% val and 90% val) will be perfectly evaluated.
+# Only use last 1-remove_proportion% of the data.
+remove_proportion = 0.5
 n_data_matches = df_teamfeatures_train.shape[0]
-df_teamfeatures_train = df_teamfeatures_train.iloc[int(n_data_matches * 0.1) :]
-df_labels = df_labels.iloc[int(n_data_matches * 0.1) :]
+df_teamfeatures_train = df_teamfeatures_train.iloc[int(n_data_matches * remove_proportion) :]
+df_labels = df_labels.iloc[int(n_data_matches * remove_proportion) :]
 
 # Initialize Elo ratings for each team
 initial_elo = 1500  # Initial Elo rating
@@ -51,6 +52,7 @@ for index, row in merged_df.iterrows():
 # Create a dataframe with team names, win rates, and Elo ratings
 elo_df = pd.DataFrame({'Team_Name': win_rate.index, 'global_winrate': win_rate})
 elo_df['elo'] = [elo_ratings[team] for team in elo_df['Team_Name']]
+elo_df['total_matches'] = total_matches
 
 # Save the dataframe to a CSV file
 elo_df.to_csv('data/elo.csv', index=False)

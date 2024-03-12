@@ -108,6 +108,7 @@ def create_features(
         df_teamfeatures = add_elo_features(
             df_features=df_teamfeatures,
             features_config=teamfeatures_config,
+            data_path=data_path,
         )
         # Convert inf to NaN
         df_teamfeatures.replace([np.inf, -np.inf], np.nan, inplace=True)

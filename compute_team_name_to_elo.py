@@ -46,6 +46,7 @@ for index, row in merged_df.iterrows():
 # Create a dataframe with team names, win rates, and Elo ratings
 elo_df = pd.DataFrame({'Team_Name': win_rate.index, 'global_winrate': win_rate})
 elo_df['elo'] = [elo_ratings[team] for team in elo_df['Team_Name']]
+elo_df['total_matches'] = total_matches
 
 # Save the dataframe to a CSV file
 elo_df.to_csv('data/elo.csv', index=False)
