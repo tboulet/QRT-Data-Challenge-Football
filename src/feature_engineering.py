@@ -16,6 +16,7 @@ import datetime
 from time import time
 from typing import Any, Dict, List, Tuple, Type
 import cProfile
+from functools import reduce
 
 # ML libraries
 import numpy as np
@@ -588,7 +589,7 @@ def get_statistical_playerfeatures(
     columns = [
         "LEAGUE",
         "TEAM_NAME",
-        "POSITION",
+        # "POSITION",
         "PLAYER_NAME",
     ]
     df_playerfeatures_home_filtered = df_playerfeatures_home_copy.drop(columns=columns, errors="ignore")
@@ -618,7 +619,18 @@ def get_statistical_playerfeatures(
                     )
 
                 elif position == "separated":
-                    raise ValueError("Not implemented yet")
+                    players_positions = ["attacker", "defender", "midfielder", "goalkeeper"]
+                    for player_position in players_positions:
+                        importance_player_factors = load_importance_factors(
+                            homeaway="mixed",
+                            position=player_position,
+                        )
+                        list_df_stat_playerfeatures.append(
+                            statistical_features_computations(
+                                df_playerfeatures_mixed[df_playerfeatures_mixed["POSITION"] == player_position],
+                                importance_player_factors,
+                            )
+                        )
 
                 else:
                     raise ValueError(f"Unknown position {position}")
@@ -645,7 +657,55 @@ def get_statistical_playerfeatures(
                     )
 
                 elif position == "separated":
-                    raise ValueError("Not implemented yet")
+                    players_positions = ["attacker", "defender", "midfielder", "goalkeeper"]
+                    for player_position in players_positions:
+                        importance_player_home_factors = load_importance_factors(
+                            homeaway="home",
+                            position=player_position,
+                        )
+                        importance_player_away_factors = load_importance_factors(
+                            homeaway="away",
+                            position=player_position,
+                        )
+                        list_df_stat_playerfeatures.append(
+                            statistical_features_computations(
+                                df_playerfeatures_home_filtered[
+                                    df_playerfeatures_home_filtered["POSITION"] == player_position
+                                ],
+                                importance_player_home_factors,
+                            )
+                        )
+                        list_df_stat_playerfeatures.append(
+                            statistical_features_computations(
+                                df_playerfeatures_away_filtered[
+                                    df_playerfeatures_away_filtered["POSITION"] == player_position
+                                ],
+                                importance_player_away_factors,
+                            )
+                        )
+                    importances_player_home_factors = load_importance_factors(
+                        homeaway="home",
+                    )
+                    importances_player_away_factors = load_importance_factors(
+                        homeaway="away",
+                    )
+                    # when position is NaN
+                    list_df_stat_playerfeatures.append(
+                        statistical_features_computations(
+                            df_playerfeatures_home_filtered[
+                                df_playerfeatures_home_filtered["POSITION"].isna()
+                            ],
+                            importances_player_home_factors,
+                        )
+                    )
+                    list_df_stat_playerfeatures.append(
+                        statistical_features_computations(
+                            df_playerfeatures_away_filtered[
+                                df_playerfeatures_away_filtered["POSITION"].isna()
+                            ],
+                            importances_player_away_factors,
+                        )
+                    )
 
                 else:
                     raise ValueError(f"Unknown position {position}")
@@ -653,19 +713,30 @@ def get_statistical_playerfeatures(
             else:
                 raise ValueError(f"Unknown homeaway {homeaway}")
 
-    df_combined = pd.concat(list_df_stat_playerfeatures, axis=1)
-    df_combined.columns = [f"col{i}" for i in range(1, len(df_combined.columns) + 1)]
+    if position == "mixed":
+        df_combined = pd.concat(list_df_stat_playerfeatures, axis=1)
+        df_combined.columns = [f"col{i}" for i in range(1, len(df_combined.columns) + 1)]
 
-    df_expanded = pd.DataFrame(
-        df_combined.apply(lambda row: sum(row.tolist(), []), axis=1).tolist(),
-        index=df_combined.index,
-    )
-    column_names = [f"stat_player_feature_{i}" for i in range(df_expanded.shape[1])]
-    df_expanded.columns = column_names
-
-    # !! Actuellement on mélange les joueurs, c'est vraiment pas idéal...
-
-    return df_expanded
+        df_expanded = pd.DataFrame(
+            df_combined.apply(lambda row: sum(row.tolist(), []), axis=1).tolist(),
+            index=df_combined.index,
+        )
+        column_names = [f"stat_player_feature_{i}" for i in range(df_expanded.shape[1])]
+        df_expanded.columns = column_names
+        return df_expanded
+    
+    elif position == "separated":
+        dfs = []
+        for i, s in enumerate(list_df_stat_playerfeatures):
+            # Calculate the average of each list
+            df = s.apply(lambda x: np.mean(x) if isinstance(x, list) and len(x) > 0 else np.nan)
+            # Keep only 'ID' and the new average column
+            # df = df[['ID', f'avg_feature_{i}']]
+            dfs.append(df)
+        df_merged = reduce(lambda left, right: pd.merge(left, right, on='ID', how='outer'), dfs)
+        column_names = [f"avg_stat_player_feature_{i}" for i in range(df_merged.shape[1])]
+        df_merged.columns = column_names
+        return df_merged
 
 
 def statistical_features_computations(
@@ -681,6 +752,10 @@ def statistical_features_computations(
     Returns:
         pd.DataFrame: the dataframe with the statistical features added
     """
+    # Make sure the df is not empty
+    if df_playerfeatures.empty:
+        df_playerfeatures = pd.DataFrame(np.zeros((1,)))
+        
     # Filter df_playerfeatures to keep only the columns in important_player_factors
     common_columns = df_playerfeatures.columns.intersection(
         important_player_factors.columns

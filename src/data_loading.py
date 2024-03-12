@@ -278,6 +278,7 @@ def load_index_numpy_labels_team_identifier(
 
 def load_importance_factors(
     homeaway: str,
+    position="mixed",
     global_data_path = "data/",
 ) -> pd.DataFrame:
     """Load the importance factors from the dataset
@@ -285,8 +286,21 @@ def load_importance_factors(
     Args:
         global_data_path (str): the path where all CSVs are.
     """
-    importance_factors = pd.read_csv(
-        global_data_path + f"important_player_factors_{homeaway}.csv",
-    ).transpose()
-    importance_factors.columns = importance_factors.iloc[0]
-    return importance_factors
+    # If position is mixed
+    if position == "mixed":
+        importance_factors = pd.read_csv(
+            global_data_path + f"important_player_factors_{homeaway}.csv",
+        ).transpose()
+        importance_factors.columns = importance_factors.iloc[0]
+        return importance_factors
+    
+    # If position is not mixed, test if it is a valid position among attacker, defender, midfielder, goalkeeper
+    valid_positions = ["attacker", "defender", "midfielder", "goalkeeper"]
+    if position not in valid_positions:
+        raise ValueError(f"Invalid position: {position}. Valid positions are: {valid_positions}")
+    else:
+        importance_factors = pd.read_csv(
+            global_data_path + f"important_player_factors_{homeaway}_{position}.csv",
+        ).transpose()
+        importance_factors.columns = importance_factors.iloc[0]
+        return importance_factors

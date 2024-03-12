@@ -151,8 +151,8 @@ statistical_features_config :
 
   # The handing of players positions: no difference (mixed) or separated (separated)
   position:
-    - mixed
-    # - separated
+    # - mixed
+    - separated
 
 # Defaults sub-configs and other Hydra config.
 defaults:
