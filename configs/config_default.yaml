@@ -6,7 +6,7 @@ cross_val_folds : 10
 do_test_pred : True
 
 # Logging
-do_wandb : False
+do_wandb : True
 wandb_config:
   project : QRT-Data-Challenge-Football
 do_tb : True

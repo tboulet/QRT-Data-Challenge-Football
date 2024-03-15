@@ -8,3 +8,18 @@ config:
 
   # Maximum depth of a tree
   max_depth : 3
+
+  # subsample
+  subsample : 0.8
+
+  # colsample_bytree
+  colsample_bytree : 0.8
+
+  # Number of trees
+  n_estimators : 100
+
+  # reg_alpha
+  reg_alpha : 0.1
+
+  # reg_lambda
+  reg_lambda : 0.1
