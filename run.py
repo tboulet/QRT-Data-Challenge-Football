@@ -226,12 +226,13 @@ def create_features(
     dataframe = dataframe.loc[:,~dataframe.columns.duplicated()].copy()
     return dataframe
 
-
 @hydra.main(config_path="configs", config_name="config_default.yaml")
 def main(config: DictConfig):
-
-    # Get the config values from the config object.
+    # Get the config
     config = OmegaConf.to_container(config, resolve=True)
+    print(f"Config:\n{OmegaConf.to_yaml(config)}\n")
+    
+    # Get the config values from the config object.
     do_shuffle: bool = config["do_shuffle"]
     n_data_max: int = config["n_data_max"]
     K: int = config["cross_val_folds"]
@@ -254,12 +255,15 @@ def main(config: DictConfig):
     trainer_config = config["trainer"]["config"]
     trainer = TrainerClass(trainer_config)
 
-    # Get the teamfeature config, playerfeature config, and aggregator config
-
     # Initialize loggers
     run_name = f"[{name_trainer}]_{datetime.datetime.now().strftime('%dth%mmo_%Hh%Mmin%Ss')}_seed{seed}"
     print(f"\nStarting run {run_name}")
-
+    if do_wandb:
+        wandb.init(project="QRT-Data-Challenge-Football", name=run_name)
+        wandb.config.update(config)
+    if do_tb:
+        writer = SummaryWriter(log_dir=f"tensorboard/{run_name}")
+        
     # Load the features
     df = create_features(
         teamfeatures_config=config["teamfeatures_config"],
@@ -348,6 +352,8 @@ def main(config: DictConfig):
         # Log metrics
         if do_cli:
             print(f"Metrics: {metric_results}")
+        if do_wandb:
+            wandb.log(metric_results)
 
     if do_test_pred:
         save_predictions(list_label_preds_test, path="predictions.csv")
@@ -357,8 +363,11 @@ def main(config: DictConfig):
     print()
     for metric_name, list_metric in dict_list_metrics.items():
         print(f"Metric {metric_name}: {np.mean(list_metric)} +- {np.std(list_metric)}")
+    if do_wandb:
+        wandb.log({"val_acc_mean": np.mean(dict_list_metrics["accuracy_val"])})
+        print(f"Val accuracy mean logged to wandb: {np.mean(dict_list_metrics['accuracy_val'])}")
 
-
+    
 if __name__ == "__main__":
     with cProfile.Profile() as pr:
         main()

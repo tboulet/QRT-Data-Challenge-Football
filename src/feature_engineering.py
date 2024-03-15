@@ -176,12 +176,15 @@ def add_non_null_indicator_features(
                 len(fn_names) > 1
                 or not features_config["add_non_null_indicator_feature"]
             ):
-                df_features[metric + "_is_not_null"] = (
-                    df_features[[f"{metric}_{fn_name}" for fn_name in fn_names]]
-                    .notnull()
-                    .any(axis=1)
-                    .astype(int)
-                )
+                if fn_names != [""]:
+                    df_features[metric + "_is_not_null"] = (
+                        df_features[[f"{metric}_{fn_name}" for fn_name in fn_names]]
+                        .notnull()
+                        .any(axis=1)
+                        .astype(int)
+                    )
+                else:
+                    df_features[metric + "_is_not_null"] = df_features[metric].notnull().astype(int)
                 n_added_feature_is_not_null += 1
             # Adding the feature is not null for each aggregate function if features_config["add_non_null_indicator_feature"] and there is more than one aggregate function for the metric (or if features_config["add_non_null_indicator_metric"] is False)
             if features_config["add_non_null_indicator_feature"]:

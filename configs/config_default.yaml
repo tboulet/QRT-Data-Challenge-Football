@@ -1,15 +1,14 @@
 # Hyperparameters
 seed : 
-do_shuffle : False
+do_shuffle : True
 n_data_max : null
 cross_val_folds : 10
-do_test_pred : False
+do_test_pred : True
 
 # Logging
 do_wandb : False
 wandb_config:
-  project : wandb_project_example
-  entity : wandb_entity_example
+  project : QRT-Data-Challenge-Football
 do_tb : True
 do_cli : False
 do_tqdm : True
@@ -52,7 +51,7 @@ teamfeatures_config :
   # For the test dataset, this will the predictions made by a "team predictor" in advance, in the file "data/team_identifier_predictions.csv". This requires to train a model with the script "train_team_classifier.py" before.
   add_team_name_identifier : False
   add_team_name_indicator : False
-  add_team_winrate : True
+  add_team_winrate : False
   # The elo feature
   add_global_winrate : True
   add_elo : True
@@ -139,7 +138,7 @@ aggregator_config :
 statistical_features_config :
 
   # Whether to add those features
-  add_statistical_features : True
+  add_statistical_features : False
 
   # The number of components from TGCCA to use. Currently, only 1 is supported.
   ncomp: 1

@@ -51,9 +51,7 @@ class XGBoostTrainer(BaseTrainer):
 
         self.clf = xgb.XGBClassifier(
             objective="multi:softmax",  # Specify multiclass classification
-            num_class=3,  # Number of classes in the dataset
-            learning_rate=0.1,  # Learning rate
-            max_depth=3,  # Maximum depth of a tree
+            **self.config,
         )
         self.clf.fit(dataframe_train, labels_train)
 
