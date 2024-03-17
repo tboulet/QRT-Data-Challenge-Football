@@ -29,6 +29,9 @@ teamfeatures_config :
     - 5_last_match_sum
     - 5_last_match_average
     - 5_last_match_std
+
+  # Threshold for dropping metrics if distribution difference is above
+  threshold_distribution_difference_drop : 2
   
   # Threshold for dropping features if correlation is above
   threshold_correlation_drop : 0.80
@@ -53,8 +56,8 @@ teamfeatures_config :
   add_team_name_indicator : False
   add_team_winrate : False
   # The elo feature
-  add_global_winrate : True
-  add_elo : True
+  add_global_winrate : False
+  add_elo : False
   # Whether to balance statistics.
   balance_train_stats : True
 
@@ -98,10 +101,13 @@ playerfeatures_config :
   # The aggregation functions we will drop (e.g. season_std)
   fn_agg_to_drop:
     - season_average
-    # - season_std
+    - season_std
     - 5_last_match_sum
     - 5_last_match_average
     - 5_last_match_std
+
+  # Threshold for dropping metrics if distribution difference is above
+  threshold_distribution_difference_drop : 2
 
   # Threshold for dropping features if correlation is above
   threshold_correlation_drop : 0.80
@@ -109,8 +115,8 @@ playerfeatures_config :
   # Whether to add non-null indicator features. The first boolean adds non-null indicator for each feature.
   # The second boolean adds non-null indicator for the set of feature associated with each metric.
   # This means the indicator will be 1 only if all feature related to the metric are non-null.
-  add_non_null_indicator_feature : False
-  add_non_null_indicator_metric : False
+  add_non_null_indicator_feature : True
+  add_non_null_indicator_metric : True
 
   # The imputation method to use (e.g. median, mean, mode, etc.)
   # If null or False, no imputation will be done.

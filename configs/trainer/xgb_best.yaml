@@ -1,0 +1,25 @@
+name: XGBoost
+config:
+  # Number of classes in the dataset
+  num_class : 3
+
+  # Learning rate
+  learning_rate : 0.001 
+
+  # Maximum depth of a tree
+  max_depth : 12
+
+  # subsample
+  subsample : 0.8856
+
+  # colsample_bytree
+  colsample_bytree : 0.7798
+
+  # Number of trees
+  n_estimators : 200
+
+  # reg_alpha
+  reg_alpha : 0.4331
+
+  # reg_lambda
+  reg_lambda : 0.2387
