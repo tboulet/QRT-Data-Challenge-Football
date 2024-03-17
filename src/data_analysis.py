@@ -48,6 +48,14 @@ def get_metrics_names_to_fn_names(df_features: pd.DataFrame) -> Dict[str, List[s
     return metrics_names_to_fn_names
 
 
+def feature_name_to_metric_name(feature_name: str) -> str:
+    """Get the metric name from a feature name."""
+    words_splitted = feature_name.split("_")
+    higher_idx_word_capital_letter = np.sum([int(word.isupper()) for word in words_splitted])
+    metric_name = "_".join(words_splitted[:higher_idx_word_capital_letter])
+    return metric_name
+
+
 def pd_serie_to_distribution(serie: pd.Series, n_value_max: int) -> np.array:
     """Transform a pandas serie whose values are integers in the range [0, n_value_max] into a distribution in [0, n_value_max], as a numpy array of shape (n_value_max+1,)
 
@@ -67,10 +75,9 @@ def pd_serie_to_distribution(serie: pd.Series, n_value_max: int) -> np.array:
     assert (
         0 <= serie.min() and serie.max() <= n_value_max
     ), f"Values should be in the range [0, {n_value_max}], found {serie.min()} and {serie.max()} instead."
-    res = serie.value_counts(
-        sort=True, normalize=True, ascending=False, bins=range(n_value_max + 2)
-    )
-    vector_distrib = res.values / np.sum(res.values)
+    vector_distrib = serie.value_counts(
+        sort=False, normalize=True, ascending=False, bins=range(-1, n_value_max + 1)
+    ).values
     assert vector_distrib.shape == (
         n_value_max + 1,
     ), f"Expected shape {(n_value_max + 1,)}, got {vector_distrib.shape} instead."
