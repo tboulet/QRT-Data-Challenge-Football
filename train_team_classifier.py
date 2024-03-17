@@ -153,6 +153,8 @@ def create_features_for_team_classification(
         df_agg_playerfeatures_home = get_agg_playerfeatures_by_operation(
             df_playerfeatures=df_playerfeatures_home,
             aggregator_config=aggregator_config,
+            homeaway="home",
+            n_top_features=aggregator_config["n_top_features"],
         )
         add_prefix_to_columns(df_agg_playerfeatures_home, "HOME_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_home)
@@ -161,9 +163,12 @@ def create_features_for_team_classification(
         df_agg_playerfeatures_away = get_agg_playerfeatures_by_operation(
             df_playerfeatures=df_playerfeatures_away,
             aggregator_config=aggregator_config,
+            homeaway="away",
+            n_top_features=aggregator_config["n_top_features"],
         )
         add_prefix_to_columns(df_agg_playerfeatures_away, "AWAY_")
         list_df_agg_playerfeatures.append(df_agg_playerfeatures_away)
+
 
     # Merge and clean the teamfeatures and the aggregated playerfeatures
     with RuntimeMeter("merging") as rm:
@@ -208,9 +213,11 @@ def create_features_for_team_classification(
                 home_values = dataframe[home_feature]
                 away_values = dataframe[away_feature]
 
+                breakpoint()
+
                 # Create a column for the feature without the side prefix
                 team_features_df[feature_name] = pd.concat(
-                    [home_values, away_values], ignore_index=True
+                    [home_values, away_values], ignore_index=True, axis=1,
                 )
 
     print(f"[Shapes] Final features shape: {team_features_df.shape}")
