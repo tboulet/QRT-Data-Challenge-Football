@@ -20,6 +20,7 @@ from functools import reduce
 
 # ML libraries
 import numpy as np
+import yaml
 from src.constants import SPECIFIC_PLAYERFEATURES, SPECIFIC_TEAMFEATURES
 from src.data_analysis import get_metrics_names_to_fn_names
 from src.data_loading import load_dataframe_labels, load_importance_factors
@@ -43,12 +44,12 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
     metrics_names_to_fn_names = get_metrics_names_to_fn_names(df_features=df_features)
 
     # Drop features if their correlation with the target is too low
-    thr = features_config["threshold_correlation_drop"]
+    threshold_correlation_drop = features_config["threshold_correlation_drop"]
     if verbose >= 1:
-        print(f"\tDropping features with correlation with the target below {thr}...")
+        print(f"\tDropping features with correlation with the target below {threshold_correlation_drop}...")
     n_dropped_features = 0
     features_blocked = set()
-    if thr is not None and thr > 0:
+    if threshold_correlation_drop is not None and threshold_correlation_drop > 0:
         max_correlations_df = pd.read_csv(
             "data/max_correlations_global.csv", index_col=0
         )
@@ -65,10 +66,10 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
             if max_corr_feature_row["Max Correlated Feature"] in features_blocked:
                 continue
             # Drop if the correlation is above the threshold
-            if max_corr_feature_row["Correlation"] > thr:
+            if max_corr_feature_row["Correlation"] > threshold_correlation_drop:
                 if verbose >= 2:
                     print(
-                        f"\t\tDropping {feature} because its correlation with {max_corr_feature_row['Max Correlated Feature']} is above {thr}"
+                        f"\t\tDropping {feature} because its correlation with {max_corr_feature_row['Max Correlated Feature']} is above {threshold_correlation_drop}"
                     )
                 # df_features = df_features.drop(columns=[feature])
                 features_to_keep.remove(feature)
@@ -78,16 +79,29 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
 
     if verbose >= 1:
         print(
-            f"\tDropped {n_dropped_features} features with correlation with the target below {thr}"
+            f"\tDropped {n_dropped_features} features with correlation with the target below {threshold_correlation_drop}"
         )
 
     # Drop specified metrics
+    # Also drop metrics with a normalized distribution difference above a threshold
     if verbose >= 1:
         print("\tDropping metrics...")
     n_dropped_features = 0
     names_feature_dropped = set()
     features_to_keep = df_features.columns.tolist().copy()
-    for metric in features_config["metrics_to_drop"]:
+    metrics_to_drop = features_config["metrics_to_drop"]
+    
+    threshold_distribution_difference_drop = features_config["threshold_distribution_difference_drop"]
+    metrics_name_to_distribution_difference_teams = yaml.safe_load(open("data/normalized_differences_teams.yaml"))
+    metrics_name_to_distribution_difference_players = yaml.safe_load(open("data/normalized_differences_players.yaml"))
+    for metric_name, distribution_difference in metrics_name_to_distribution_difference_teams.items():
+        if distribution_difference > threshold_distribution_difference_drop:
+            metrics_to_drop.append(metric_name)
+    for metric_name, distribution_difference in metrics_name_to_distribution_difference_players.items():
+        if distribution_difference > threshold_distribution_difference_drop:
+            metrics_to_drop.append(metric_name)
+            
+    for metric in metrics_to_drop:
         if metric not in metrics_names_to_fn_names:
             print(
                 f"\tWARNING: tried to drop metric {metric}, but this metric doesn't appear in the dataframe"
@@ -98,9 +112,9 @@ def drop_features(df_features: pd.DataFrame, features_config: dict) -> pd.DataFr
             for aggregate_function_names in metrics_names_to_fn_names[metric]:
                 name_feature = f"{metric}_{aggregate_function_names}"
                 names_feature_dropped.add(name_feature)
-                if name_feature in df_features.columns:
+                if name_feature in features_to_keep:
                     features_to_keep.remove(name_feature)
-                n_dropped_features += 1
+                    n_dropped_features += 1
     df_features = df_features[features_to_keep]
     if verbose >= 1:
         print(f"\tDropped {n_dropped_features} features from metrics")
