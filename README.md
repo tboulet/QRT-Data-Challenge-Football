@@ -3,6 +3,10 @@ Repository for the Data Challenge organized by QRT on match results prediction.
 
 By Timothé Boulet and Théo Saulus, 2024, for the course "Apprentissage et génération par échantillonnage aléatoire" of Stéphane Mallat at ENS.
 
+<p align="center">
+  <img src="assets/distribution_player_passes.png" alt="Title" width="60%"/>
+</p>
+
 This repository has limited maintenance and is not intended to be run by anyone else than the authors. The interest of this repository is rather :
 - to show the code we wrote for the challenge
 - to share the data visualizations we made (the ./data_vis_`x_name`.ipynb notebooks)
