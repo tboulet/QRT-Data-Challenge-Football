@@ -1,5 +1,12 @@
 # QRT-Data-Challenge-Football
-Repository for the Data Challenge organized by QRT on match results prediction
+Repository for the Data Challenge organized by QRT on match results prediction.
+
+By Timothé Boulet and Théo Saulus, 2024, for the course "Apprentissage et génération par échantillonnage aléatoire" of Stéphane Mallat at ENS.
+
+This repository has limited maintenance and is not intended to be run by anyone else than the authors. The interest of this repository is rather :
+- to show the code we wrote for the challenge
+- to share the data visualizations we made (the ./data_vis_`x_name`.ipynb notebooks)
+- to share the report we wrote (the report.pdf file)
 
 ## Installation
 Clone the repo, do a venv, and install the requirements with the following command:
@@ -11,23 +18,13 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Then load the data from the ENS Data Challenge website and put it in the `./datas_final/` folder that you will have to create.
+Then load the data from the ENS Data Challenge website and put it in the `./data_train/` and `./data_test/` folders (that you have to create).
 
 ## Usage
 
-They is a distinction between two kind of features, from a feature engineering point of view:
-- precomputed features: features that are computed once and for all and that are stored in a csv file. They are computed with python scripts in the `./features_engineering/` folder. There loading depends on the config.
-- dynamic features: features that are computed on the fly and that are not stored in a csv file. Their computation depends on the config.
+To run a model (e.g. XGBoost) on the data, you can use the following command:
+```bash
+python run.py trainer=xgb
+```
 
-There are 3 main components to the project:
-- trainer : this is the object that will create and train models using features provided by the features_loader and features_creator.
-- loaders : this is the object that will load the features from the csv files.
-- creators : this is the object that will create the dynamic features from the original or additional loaded data.
-
-We use cross validation (with K=5 folds) to evaluate the models. The evaluation metric is the accuracy.
-
-The pipeline is summarized as follows:
-
-<p align="center">
-  <img src="assets/pipeline.jpg" alt="Title" width="60%"/>
-</p>
+The config of the feature engineering, the model along its hyperparameters, and the way we are predicting are stored in the `configs/` folder. 

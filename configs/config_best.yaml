@@ -33,6 +33,9 @@ teamfeatures_config :
   # Threshold for dropping features if correlation is above
   threshold_correlation_drop : 0.7328
 
+  # Threshold for dropping metrics if distribution difference is above
+  threshold_distribution_difference_drop : 5.0
+
   # Whether to add non-null indicator features. The first boolean adds non-null indicator for each feature.
   # The second boolean adds non-null indicator for the set of feature associated with each metric.
   # This means the indicator will be 1 only if all feature related to the metric are non-null.
@@ -105,6 +108,9 @@ playerfeatures_config :
 
   # Threshold for dropping features if correlation is above
   threshold_correlation_drop : 0.6654
+
+  # Threshold for dropping metrics if distribution difference is above
+  threshold_distribution_difference_drop : 5.0
 
   # Whether to add non-null indicator features. The first boolean adds non-null indicator for each feature.
   # The second boolean adds non-null indicator for the set of feature associated with each metric.
